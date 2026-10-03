@@ -7,8 +7,9 @@
 ---
 
 ### 🌐 ИГРАТЬ ОНЛАЙН В БРАУЗЕРЕ (БЕЗ СКАЧИВАНИЯ)
-Вы можете запустить игру прямо сейчас по прямой веб-ссылке на любом устройстве (ПК или Телефон):
-👉 **[https://ais-pre-fvgir2kty36ofxeyedoidw-413699696592.europe-west2.run.app](https://ais-pre-fvgir2kty36ofxeyedoidw-413699696592.europe-west2.run.app)**
+Вы можете запустить игру прямо сейчас по официальной веб-ссылке на любом устройстве (ПК или Телефон):
+👉 **[https://underground-syndicate-lab-botany-simulator.ai.studio](https://underground-syndicate-lab-botany-simulator.ai.studio)**
+*(Также доступна резервная ссылка: [https://ais-pre-fvgir2kty36ofxeyedoidw-413699696592.europe-west2.run.app](https://ais-pre-fvgir2kty36ofxeyedoidw-413699696592.europe-west2.run.app))*
 
 ---
 
