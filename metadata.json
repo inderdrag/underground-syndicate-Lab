@@ -1,0 +1,6 @@
+{
+  "name": "Underground Syndicate: Lab & Botany Simulator",
+  "description": "Native engine simulation and interactive laboratory for botany cultivation, psilocybin mycology, and organic synthesis with dynamic market economy and visual consumption shaders.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

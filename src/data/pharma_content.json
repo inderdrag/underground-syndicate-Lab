@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "packName": "PHARMA_CONTENT_PACK",
+  "version": "2.2.0",
+  "description": "Конфигурация аптечной группы препаратов. Безрецептурные: Парацетамол, Ибупрофен, Мелатонин. На все остальные требуется рецепт.",
+  "rarityColors": {
+    "common": "#9ea0a5",
+    "uncommon": "#10b981",
+    "rare": "#3b82f6",
+    "epic": "#a855f7",
+    "legendary": "#f59e0b"
+  },
+  "rarityNames": {
+    "common": "Обычная",
+    "uncommon": "Необычная",
+    "rare": "Редкая",
+    "epic": "Эпическая",
+    "legendary": "Легендарная"
+  },
+  "abstractComponents": [
+    {
+      "id": "base",
+      "name": "Основа",
+      "description": "Базовый аптечный компонент для наполнения таблеток и капсул",
+      "cost": 2
+    },
+    {
+      "id": "catalyst",
+      "name": "Катализатор",
+      "description": "Усиливающий действующий агент для средних и высоких тиров",
+      "cost": 15
+    },
+    {
+      "id": "packaging",
+      "name": "Упаковка",
+      "description": "Медицинский блистер и картонная пачка для коммерческой реализации",
+      "cost": 3
+    }
+  ],
+  "buyerTypes": [
+    { "id": "pharmacy_patient", "name": "Обычный Посетитель Аптеки", "priceMultiplier": 1.0, "suspicionModifier": 0.1 },
+    { "id": "street_dealer", "name": "Уличный Барыга", "priceMultiplier": 1.3, "suspicionModifier": 1.0 },
+    { "id": "private_client", "name": "Частный VIP-клиент", "priceMultiplier": 1.6, "suspicionModifier": 0.5 },
+    { "id": "black_market", "name": "Теневой Даркнет-Заказчик", "priceMultiplier": 2.0, "suspicionModifier": 2.0 }
+  ],
+  "items": [
+    {
+      "id": "paracetamol",
+      "name": "Парацетамол",
+      "brand": "Парацетамол 500 мг",
+      "rarity": "common",
+      "basePrice": 5,
+      "effect": "Небольшое восстановление здоровья (+15 HP)",
+      "sideEffect": "Нет",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-1 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 15,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "ibuprofen",
+      "name": "Ибупрофен",
+      "brand": "Ибупрофен 400 мг",
+      "rarity": "common",
+      "basePrice": 8,
+      "effect": "Восстановление здоровья (+25 HP) и снижение усталости",
+      "sideEffect": "Нет",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-2 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 18,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "melatonin",
+      "name": "Мелатонин",
+      "brand": "Мелатонин 3 мг",
+      "rarity": "common",
+      "basePrice": 10,
+      "effect": "Быстрее восстанавливает энергию во сне (+40% энергии)",
+      "sideEffect": "Нет",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-3 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 20,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "gabapentin",
+      "name": "Габапентин",
+      "brand": "Габапентин 300 мг (Teva)",
+      "rarity": "uncommon",
+      "basePrice": 25,
+      "effect": "Снижает стресс и замедляет рост усталости",
+      "sideEffect": "Легкая сонливость: скорость −5%",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф B-1 (Рецептурный отдел)",
+      "hasDebuff": true,
+      "debuffName": "Сонливость (−5% к скорости)",
+      "addictionRate": 5,
+      "suspicionRate": 2,
+      "craftTimeSeconds": 30,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "lyrica",
+      "name": "Лирика",
+      "brand": "LYRICA 75 мг (Pfizer)",
+      "rarity": "uncommon",
+      "basePrice": 35,
+      "effect": "Сильнее габапентина и плюс к спокойствию",
+      "sideEffect": "Сонливость: скорость −8%",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф B-2 (Строгий учёт)",
+      "hasDebuff": true,
+      "debuffName": "Заторможенность (−8% к скорости)",
+      "addictionRate": 10,
+      "suspicionRate": 3,
+      "craftTimeSeconds": 35,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "zoloft",
+      "name": "Золофт",
+      "brand": "Zoloft 50 мг (Pfizer)",
+      "rarity": "uncommon",
+      "basePrice": 40,
+      "effect": "Постоянный плюс к настроению на долгий срок",
+      "sideEffect": "Эффект набирается медленно, при пропуске пропадает",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф B-3 (Рецептурный отдел)",
+      "hasDebuff": true,
+      "debuffName": "Синдром отмены при пропуске",
+      "addictionRate": 4,
+      "suspicionRate": 2,
+      "craftTimeSeconds": 40,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "tramadol",
+      "name": "Трамадол",
+      "brand": "Tramadol 50 мг (Grünenthal)",
+      "rarity": "uncommon",
+      "basePrice": 45,
+      "effect": "Блокирует боль и плюс к выносливости",
+      "sideEffect": "Откат: усталость после действия",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф B-4 (Строгий учёт)",
+      "hasDebuff": true,
+      "debuffName": "Пост-эффектная усталость",
+      "addictionRate": 15,
+      "suspicionRate": 5,
+      "craftTimeSeconds": 45,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "prozac",
+      "name": "Прозак",
+      "brand": "PROZAC 20 мг (Lilly)",
+      "rarity": "uncommon",
+      "basePrice": 45,
+      "effect": "Как Золофт, но другой профиль бонусов к фокусу",
+      "sideEffect": "Медленный набор эффекта",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф B-5 (Рецептурный отдел)",
+      "hasDebuff": true,
+      "debuffName": "Апатия при резкой отмене",
+      "addictionRate": 5,
+      "suspicionRate": 3,
+      "craftTimeSeconds": 45,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "zolpidem",
+      "name": "Золпидем",
+      "brand": "Zolpidem 10 мг",
+      "rarity": "rare",
+      "basePrice": 70,
+      "effect": "Мгновенный сон и полное восстановление энергии",
+      "sideEffect": "Выпадает несколько часов игрового времени",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф C-1 (Особый учёт)",
+      "hasDebuff": true,
+      "debuffName": "Провал во времени (Амнезия)",
+      "addictionRate": 12,
+      "suspicionRate": 8,
+      "craftTimeSeconds": 55,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "xanax",
+      "name": "Ксанакс",
+      "brand": "XANAX 1 мг (Upjohn / Pfizer)",
+      "rarity": "rare",
+      "basePrice": 90,
+      "effect": "Убирает панику и стресс, плюс к скрытности",
+      "sideEffect": "Сильный откат и шанс зависимости",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф C-2 (Особый учёт)",
+      "hasDebuff": true,
+      "debuffName": "Тяжёлый откат: апатия и тремор",
+      "addictionRate": 25,
+      "suspicionRate": 12,
+      "craftTimeSeconds": 60,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "modafinil",
+      "name": "Модафинил",
+      "brand": "MODAFINIL 200 мг",
+      "rarity": "rare",
+      "basePrice": 100,
+      "effect": "Нет сонливости и плюс к концентрации на много часов",
+      "sideEffect": "Откат: «обвал» энергии после действия",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф C-3 (Особый учёт)",
+      "hasDebuff": true,
+      "debuffName": "Полный обвал сил",
+      "addictionRate": 18,
+      "suspicionRate": 10,
+      "craftTimeSeconds": 65,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "ritalin",
+      "name": "Риталин",
+      "brand": "Ritalin 10 мг (Novartis)",
+      "rarity": "rare",
+      "basePrice": 120,
+      "effect": "Плюс к скорости крафта и концентрации",
+      "sideEffect": "Дрожь: меньше точность в мини-играх",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф C-4 (Особый учёт)",
+      "hasDebuff": true,
+      "debuffName": "Тремор рук (−25% к точности)",
+      "addictionRate": 22,
+      "suspicionRate": 14,
+      "craftTimeSeconds": 70,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "codeine",
+      "name": "Кодеин",
+      "brand": "Кодеин 30 мг",
+      "rarity": "rare",
+      "basePrice": 130,
+      "effect": "Сильное обезболивание и заторможенность",
+      "sideEffect": "Сонливость и шанс зависимости",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф C-5 (Особый учёт)",
+      "hasDebuff": true,
+      "debuffName": "Тяжёлая сонливость",
+      "addictionRate": 30,
+      "suspicionRate": 15,
+      "craftTimeSeconds": 75,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "adderall",
+      "name": "Аддерол",
+      "brand": "ADDERALL XR 20 мг (Shire)",
+      "rarity": "epic",
+      "basePrice": 200,
+      "effect": "Большие бонусы к скорости производства и работе",
+      "sideEffect": "Сильный откат и перегрев организма",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Подсобка D-1 (Бронированный бокс)",
+      "hasDebuff": true,
+      "debuffName": "Сильный откат и истощение",
+      "addictionRate": 40,
+      "suspicionRate": 25,
+      "craftTimeSeconds": 90,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "oxycodone",
+      "name": "Оксикодон",
+      "brand": "OxyContin 10 мг (Purdue)",
+      "rarity": "epic",
+      "basePrice": 300,
+      "effect": "Почти полная неуязвимость к боли на время",
+      "sideEffect": "Высокий шанс зависимости, высокое внимание полиции",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Подсобка D-2 (Бронированный бокс)",
+      "hasDebuff": true,
+      "debuffName": "Абстинентный синдром",
+      "addictionRate": 55,
+      "suspicionRate": 35,
+      "craftTimeSeconds": 100,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "morphine",
+      "name": "Морфин",
+      "brand": "Morphine 10 мг (Ампулы)",
+      "rarity": "epic",
+      "basePrice": 450,
+      "effect": "Максимальное обезболивание и регенерация",
+      "sideEffect": "Сильная зависимость, дорогой в производстве",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Подсобка D-3 (Бронированный бокс)",
+      "hasDebuff": true,
+      "debuffName": "Глубокая физическая зависимость",
+      "addictionRate": 70,
+      "suspicionRate": 45,
+      "craftTimeSeconds": 110,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "fentanyl",
+      "name": "Фентанил",
+      "brand": "FENTANYL 100 mcg/h (Пластыри)",
+      "rarity": "legendary",
+      "basePrice": 1000,
+      "effect": "Огромный эффект, элитный товар с максимальным чеком",
+      "sideEffect": "Критический риск: шанс «передоза» и максимальное внимание полиции",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Подсобка D-4 (Сейф с задержкой отпирания)",
+      "hasDebuff": true,
+      "debuffName": "Критическая передозировка и обвал ресурсов",
+      "addictionRate": 95,
+      "suspicionRate": 80,
+      "craftTimeSeconds": 120,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 3 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    }
+  ]
+}
