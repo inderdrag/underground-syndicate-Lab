@@ -22,7 +22,8 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "package.json"
     ],
     "win": {
       "icon": "public/icon.png",

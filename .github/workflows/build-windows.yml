@@ -1,4 +1,4 @@
-name: Build Windows EXE Release
+name: Build Windows EXE & Standalone Game
 
 on:
   push:
@@ -14,21 +14,22 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build & Release Windows .exe
+    name: 🚀 Build & Release Windows .exe
     runs-on: windows-latest
 
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: ⚙️ Setup Node.js (v20)
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: 📦 Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: 🔨 Build Frontend Bundle & Single-File Game
         run: npm run build
@@ -38,23 +39,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🏷️ Determine Release Tag
-        id: vars
+      - name: 🏷️ Set Release Tag
+        id: tag
         shell: bash
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "release_tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "release_name=Underground Syndicate ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+            echo "release_tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+            echo "release_name=Underground Syndicate Game Build (v1.0.${{ github.run_number }})" >> $GITHUB_OUTPUT
           fi
 
-      - name: 📤 Publish Standalone .EXE to GitHub Releases
+      - name: 📤 Publish .EXE & Offline Files to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.vars.outputs.tag }}
-          name: "Underground Syndicate Game Build (${{ steps.vars.outputs.tag }})"
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: ${{ steps.tag.outputs.release_name }}
           draft: false
           prerelease: false
+          make_latest: true
           generate_release_notes: true
           files: |
             dist-electron/*.exe
