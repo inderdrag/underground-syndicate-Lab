@@ -311,8 +311,14 @@ export function waterPlant(
     type: isWarning ? 'warning' : 'care',
   };
 
+  const boostedProgress = Math.min(100, plant.progress + (isWarning ? 2.0 : 8.0));
+  const { stage: nextStage, stageProgress } = getStageFromProgress(boostedProgress);
+
   const updatedPlant: BotanyPlant = {
     ...plant,
+    progress: boostedProgress,
+    stage: nextStage,
+    stageProgress,
     moisture: newMoisture,
     health: Math.min(100, Math.max(10, plant.health + healthDelta)),
     condition,
@@ -395,8 +401,14 @@ export function feedPlant(
     type: isWarning ? 'warning' : 'care',
   };
 
+  const boostedProgress = Math.min(100, plant.progress + (isWarning ? 3.0 : 12.0));
+  const { stage: nextStage, stageProgress } = getStageFromProgress(boostedProgress);
+
   const updatedPlant: BotanyPlant = {
     ...plant,
+    progress: boostedProgress,
+    stage: nextStage,
+    stageProgress,
     nutrients: {
       ...plant.nutrients,
       n: newN,
@@ -562,19 +574,20 @@ export function simulatePlantHourTick(plant: BotanyPlant, lawyerRetainerActive: 
   }
 
   let growthSpeedMultiplier = 1.0;
-  if (plant.medium === 'hydroponics') growthSpeedMultiplier *= 1.25;
-  if (plant.medium === 'coco') growthSpeedMultiplier *= 1.12;
-  if (plant.lightWattage === 800) growthSpeedMultiplier *= 1.1;
-  if (plant.lightWattage === 1000) growthSpeedMultiplier *= 1.2;
-  if (plant.scrogInstalled) growthSpeedMultiplier *= 1.08;
+  if (plant.medium === 'hydroponics') growthSpeedMultiplier *= 1.35;
+  if (plant.medium === 'coco') growthSpeedMultiplier *= 1.20;
+  if (plant.lightWattage === 800) growthSpeedMultiplier *= 1.2;
+  if (plant.lightWattage === 1000) growthSpeedMultiplier *= 1.35;
+  if (plant.scrogInstalled) growthSpeedMultiplier *= 1.15;
 
   if (plant.health < 40 || newMoisture < 15) {
-    growthSpeedMultiplier = 0.2;
-  } else if (plant.health >= 85 && newMoisture >= 50 && newMoisture <= 75) {
-    growthSpeedMultiplier *= 1.2;
+    growthSpeedMultiplier = 0.3;
+  } else if (plant.health >= 80 && newMoisture >= 45 && newMoisture <= 80) {
+    growthSpeedMultiplier *= 1.4;
   }
 
-  const nextProgress = Math.min(100, plant.progress + 1.2 * growthSpeedMultiplier);
+  // Lightning-fast, hyper-responsive growth: ~20% base progress per hour tick
+  const nextProgress = Math.min(100, plant.progress + 20.0 * growthSpeedMultiplier);
   const { stage: nextStage, stageProgress } = getStageFromProgress(nextProgress);
 
   let updatedLog = plant.historyLog || [];

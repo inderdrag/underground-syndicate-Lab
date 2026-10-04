@@ -95,10 +95,14 @@ export const MarketEconomy: React.FC<MarketEconomyProps> = ({
         return gameState.inventory.mushroomsGrams;
       case 'astral_raw':
         return gameState.inventory.astralMushroomsRawGrams || 0;
+      case 'astral_dried':
+        return gameState.inventory.astralMushroomsDriedGrams || 0;
       case 'astral_craft':
         return gameState.inventory.astralCraftPacks || 0;
       case 'astral_microdose':
         return gameState.inventory.astralMicrodoseJars || 0;
+      case 'astral_syndicate':
+        return gameState.inventory.astralSyndicateBoxes || 0;
       case 'lsd_25':
         return gameState.inventory.lsdSheets;
       case 'cocaine':
@@ -109,6 +113,8 @@ export const MarketEconomy: React.FC<MarketEconomyProps> = ({
         return gameState.inventory.auroraPowderGrams || 0;
       case 'aurora_briquette':
         return gameState.inventory.packagedAuroraBriquettes || 0;
+      case 'aurora_block':
+        return gameState.inventory.packagedAuroraBlocks || 0;
       default:
         return 0;
     }
@@ -134,9 +140,12 @@ export const MarketEconomy: React.FC<MarketEconomyProps> = ({
     else if (key === 'cocaine') base = 85;
     else if (key === 'aurora_powder') base = 75;
     else if (key === 'aurora_briquette') base = 700;
+    else if (key === 'aurora_block') base = 3400;
     else if (key === 'astral_craft') base = 140;
     else if (key === 'astral_microdose') base = 680;
+    else if (key === 'astral_syndicate') base = 2850;
     else if (key === 'astral_raw') base = 18;
+    else if (key === 'astral_dried') base = 28;
 
     const eventMod = getEventPriceModifier(key);
     return calculateDynamicPrice(base, market ? market.saturation : 0.4, gameState.policeHeat, 0.92, eventMod);
@@ -177,11 +186,13 @@ export const MarketEconomy: React.FC<MarketEconomyProps> = ({
     astral_raw: { ru: 'Псило-грибы «Астрал» (Сырые)', en: 'Astral Mushrooms (Raw)' },
     astral_craft: { ru: '5г Пакеты «Шепот Астрала»', en: '5g Astral Craft Packs' },
     astral_microdose: { ru: '25г Банки микродозинга', en: '25g Microdose Jars' },
+    astral_syndicate: { ru: '100г Вакуум-боксы Синдиката', en: '100g Astral Syndicate Boxes' },
     lsd_25: { ru: 'ЛСД-25 (Лист 900 табов)', en: 'LSD-25 Blotter Sheet' },
     cocaine: { ru: 'Кокаин «Fishscale»', en: 'Fishscale Cocaine' },
     neuro_sheets: { ru: 'Нейро-Блоттеры (1000 табов)', en: 'Neuro-Blotter Sheet' },
     aurora_powder: { ru: 'Порошок «Аврора» (1г)', en: 'Aurora Powder (1g)' },
     aurora_briquette: { ru: '10г Брикет «Аврора»', en: '10g Aurora Briquette' },
+    aurora_block: { ru: '50г Вакуум-блок «Аврора»', en: '50g Aurora Cartel Block' },
   };
 
   return (
@@ -505,12 +516,22 @@ export const MarketEconomy: React.FC<MarketEconomyProps> = ({
                   }}
                   className="w-full bg-[#121824] border border-white/10 rounded-xl p-2.5 text-xs text-slate-200 cursor-pointer focus:outline-none focus:border-emerald-500 shadow-sm"
                 >
-                  <option value="white_widow">White Widow ({gameState.inventory.whiteWidowGrams}g)</option>
-                  <option value="amnesia_haze">Amnesia Haze ({gameState.inventory.amnesiaHazeGrams}g)</option>
-                  <option value="gorilla_glue">Gorilla Glue #4 ({gameState.inventory.gorillaGlueGrams}g)</option>
-                  <option value="purple_haze">Purple Haze ({gameState.inventory.purpleHazeGrams}g)</option>
-                  <option value="psilocybin">Psilocybin Mushrooms ({gameState.inventory.mushroomsGrams}g)</option>
-                  <option value="lsd_25">LSD-25 Blotter Sheet ({gameState.inventory.lsdSheets} {t.sheetsInVault})</option>
+                  <option value="white_widow">Каннабис White Widow ({gameState.inventory.whiteWidowGrams}г)</option>
+                  <option value="amnesia_haze">Каннабис Amnesia Haze ({gameState.inventory.amnesiaHazeGrams}г)</option>
+                  <option value="gorilla_glue">Каннабис Gorilla Glue #4 ({gameState.inventory.gorillaGlueGrams}г)</option>
+                  <option value="purple_haze">Каннабис Purple Haze ({gameState.inventory.purpleHazeGrams}г)</option>
+                  <option value="psilocybin">Псило-грибы Psilocybe ({gameState.inventory.mushroomsGrams}г)</option>
+                  <option value="astral_raw">Грибы «Астрал» (Сырые) ({gameState.inventory.astralMushroomsRawGrams || 0}г)</option>
+                  <option value="astral_dried">Грибы «Астрал» (Сублимированные высушенные) ({gameState.inventory.astralMushroomsDriedGrams || 0}г)</option>
+                  <option value="astral_craft">5г Пакеты «Шепот Астрала» ({gameState.inventory.astralCraftPacks || 0} шт.)</option>
+                  <option value="astral_microdose">25г Банки микродозинга ({gameState.inventory.astralMicrodoseJars || 0} шт.)</option>
+                  <option value="astral_syndicate">100г Вакуум-боксы Синдиката ({gameState.inventory.astralSyndicateBoxes || 0} шт.)</option>
+                  <option value="lsd_25">ЛСД-25 Листы 900 табов ({gameState.inventory.lsdSheets} шт.)</option>
+                  <option value="cocaine">Кокаин Fishscale ({gameState.inventory.cocaineGrams || 0}г)</option>
+                  <option value="neuro_sheets">Нейро-Блоттеры ({gameState.inventory.neuroSheets || 0} шт.)</option>
+                  <option value="aurora_powder">Порошок «Аврора» (1г зиплоки) ({gameState.inventory.auroraPowderGrams || 0} шт.)</option>
+                  <option value="aurora_briquette">10г Брикеты «Аврора» ({gameState.inventory.packagedAuroraBriquettes || 0} шт.)</option>
+                  <option value="aurora_block">50г Вакуум-блоки «Аврора» ({gameState.inventory.packagedAuroraBlocks || 0} шт.)</option>
                 </select>
               </div>
 

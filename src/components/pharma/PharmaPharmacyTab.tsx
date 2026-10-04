@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import pharmaData from '../../data/pharma_content.json';
+import { PHARMA_DRUGS_CATALOG } from '../../data/pharma_recipes_config';
 import { PharmaProductBox, PharmaRarity } from './PharmaProductBox';
 import { PrescriptionInspectionModal } from './PrescriptionInspectionModal';
 import { PrescriptionForgeryModal } from './PrescriptionForgeryModal';
 import { PrescriptionBlankItem } from '../../data/prescription_blanks_config';
 import { GameState } from '../../types/game';
+import { sounds } from '../../engine/soundEffects';
 import {
   PharmaGameState,
   PharmaClient
@@ -92,10 +94,16 @@ interface CustomerPatient {
 interface PharmaPharmacyTabProps {
   gameState?: GameState;
   pharmaState?: PharmaGameState;
-  onUpdatePharmaState?: (state: PharmaGameState) => void;
+  onUpdatePharmaState?: (updaterOrState: any) => void;
   onAddCash: (amount: number) => void;
   onAddHeat: (heat: number) => void;
+  onTriggerDayEnd?: () => void;
 }
+
+// Module-level persistent cache: ensures clients NEVER change when switching between tabs!
+let persistentCounterCustomer: CustomerPatient | null = null;
+let persistentSalesHistory: SalesHistoryLog[] = [];
+let persistentLastDay: number = -1;
 
 const FIRST_NAMES = [
   'Алексей', 'Дмитрий', 'Елена', 'Иван', 'Ольга', 'Сергей', 'Михаил', 'Татьяна',
@@ -206,10 +214,14 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
   pharmaState,
   onUpdatePharmaState,
   onAddCash,
-  onAddHeat
+  onAddHeat,
+  onTriggerDayEnd,
 }) => {
   // Main sub-tabs: 'counter' (Касса & Клиенты один за другим), 'profiles' (База клиентов), 'stock' (Склад веществ & Доходы)
   const [activeTab, setActiveTab] = useState<'counter' | 'profiles' | 'stock'>('counter');
+
+  const currentDay = gameState?.day ?? 1;
+  const isNightClosed = (gameState?.hour ?? 8) >= 23;
 
   // Abstract Components stock
   const [components, setComponents] = useState<Record<string, number>>({
@@ -239,17 +251,24 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
     fentanyl: 0
   });
 
-  // CURRENT CLIENT AT THE WINDOW (Served ONE BY ONE directly at the counter!)
-  const [currentCustomer, setCurrentCustomer] = useState<CustomerPatient>(() => generateRandomCustomer());
+  // CURRENT CLIENT AT THE WINDOW (Preserved across tab switches!)
+  const [currentCustomer, setCurrentCustomer] = useState<CustomerPatient>(() => {
+    if (!persistentCounterCustomer || persistentLastDay !== currentDay) {
+      persistentCounterCustomer = generateRandomCustomer();
+      persistentLastDay = currentDay;
+    }
+    return persistentCounterCustomer;
+  });
 
-  // Sales history log
-  const [salesHistory, setSalesHistory] = useState<SalesHistoryLog[]>([]);
+  // Sales history log (Preserved across tab switches)
+  const [salesHistory, setSalesHistory] = useState<SalesHistoryLog[]>(() => persistentSalesHistory);
 
   // Character status scales
   const [suspicionLevel, setSuspicionLevel] = useState<number>(0);
 
   // Selected item in catalog/craft
   const [selectedItem, setSelectedItem] = useState<PharmaItemConfig>(pharmaData.items[0] as PharmaItemConfig);
+  const [shelfSubgroupFilter, setShelfSubgroupFilter] = useState<string>('all');
   const [isCrafting, setIsCrafting] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -276,12 +295,25 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
       price,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     };
-    setSalesHistory(prev => [newLog, ...prev.slice(0, 24)]);
+    setSalesHistory(prev => {
+      const updated = [newLog, ...prev.slice(0, 24)];
+      persistentSalesHistory = updated;
+      return updated;
+    });
   };
 
   // Serve current customer and immediately bring a NEW unique customer directly to the counter window!
   const handleNextCustomer = () => {
-    setCurrentCustomer(generateRandomCustomer());
+    const nextCust = generateRandomCustomer();
+    persistentCounterCustomer = nextCust;
+    setCurrentCustomer(nextCust);
+  };
+
+  // Live stock across pharmaState, gameState and local memory
+  const getDrugStock = (itemId: string): number => {
+    return (pharmaState?.inventory?.[itemId] || 0) + 
+           ((gameState?.inventory as any)?.[itemId] || 0) + 
+           (pharmaInventory[itemId] || 0);
   };
 
   // Sell Official / With Prescription / OTC
@@ -294,9 +326,7 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
     }
 
     const item = pharmaData.items.find(i => i.id === currentCustomer.requestedItemId) as PharmaItemConfig;
-    const stock = (pharmaInventory[currentCustomer.requestedItemId] || 0) + 
-                  (pharmaState?.inventory?.[currentCustomer.requestedItemId] || 0) + 
-                  ((gameState?.inventory as any)?.[currentCustomer.requestedItemId] || 0);
+    const stock = getDrugStock(currentCustomer.requestedItemId);
 
     if (stock < 1) {
       setNotification(`⚠️ Нет на складе препарата «${currentCustomer.requestedItemName}»! Скрафтите его в Лаборатории.`);
@@ -308,23 +338,21 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
       return;
     }
 
-    // Deduct stock cleanly from pharmaState, gameState, or local fallback
+    // Deduct stock cleanly from pharmaState, gameState, or local memory
     const itemId = currentCustomer.requestedItemId;
-    if (pharmaState?.inventory?.[itemId] && pharmaState.inventory[itemId] > 0) {
-      if (onUpdatePharmaState) {
-        onUpdatePharmaState({
-          ...pharmaState,
-          inventory: {
-            ...pharmaState.inventory,
-            [itemId]: Math.max(0, (pharmaState.inventory[itemId] || 0) - 1)
-          }
-        });
-      }
-    } else if (gameState?.inventory?.[itemId as keyof GameState['inventory']]) {
-      (gameState.inventory as any)[itemId] = Math.max(0, ((gameState.inventory as any)[itemId] || 0) - 1);
-    } else if (pharmaInventory[itemId] > 0) {
-      setPharmaInventory(prev => ({ ...prev, [itemId]: Math.max(0, prev[itemId] - 1) }));
+    if (onUpdatePharmaState && pharmaState) {
+      onUpdatePharmaState((prev: PharmaGameState) => ({
+        ...prev,
+        inventory: {
+          ...prev.inventory,
+          [itemId]: Math.max(0, (prev.inventory[itemId] || 0) - 1)
+        }
+      }));
     }
+    if (gameState?.inventory && (gameState.inventory as any)[itemId]) {
+      (gameState.inventory as any)[itemId] = Math.max(0, ((gameState.inventory as any)[itemId] || 0) - 1);
+    }
+    setPharmaInventory(prev => ({ ...prev, [itemId]: Math.max(0, (prev[itemId] || 0) - 1) }));
     onAddCash(currentCustomer.offeredPrice);
 
     addHistoryLog('official_sale', currentCustomer.offeredPrice);
@@ -351,9 +379,7 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
         (gameState.inventory as any)[key] = Math.max(0, (gameState.inventory as any)[key] - currentCustomer.amountRequested);
       }
     } else {
-      const stock = (pharmaInventory[currentCustomer.requestedItemId] || 0) + 
-                    (pharmaState?.inventory?.[currentCustomer.requestedItemId] || 0) + 
-                    ((gameState?.inventory as any)?.[currentCustomer.requestedItemId] || 0);
+      const stock = getDrugStock(currentCustomer.requestedItemId);
 
       if (stock < 1) {
         setNotification(`⚠️ Нет на складе препарата «${currentCustomer.requestedItemName}»!`);
@@ -361,21 +387,19 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
       }
 
       const itemId = currentCustomer.requestedItemId;
-      if (pharmaState?.inventory?.[itemId] && pharmaState.inventory[itemId] > 0) {
-        if (onUpdatePharmaState) {
-          onUpdatePharmaState({
-            ...pharmaState,
-            inventory: {
-              ...pharmaState.inventory,
-              [itemId]: Math.max(0, (pharmaState.inventory[itemId] || 0) - 1)
-            }
-          });
-        }
-      } else if (gameState?.inventory?.[itemId as keyof GameState['inventory']]) {
-        (gameState.inventory as any)[itemId] = Math.max(0, ((gameState.inventory as any)[itemId] || 0) - 1);
-      } else if (pharmaInventory[itemId] > 0) {
-        setPharmaInventory(prev => ({ ...prev, [itemId]: Math.max(0, prev[itemId] - 1) }));
+      if (onUpdatePharmaState && pharmaState) {
+        onUpdatePharmaState((prev: PharmaGameState) => ({
+          ...prev,
+          inventory: {
+            ...prev.inventory,
+            [itemId]: Math.max(0, (prev.inventory[itemId] || 0) - 1)
+          }
+        }));
       }
+      if (gameState?.inventory && (gameState.inventory as any)[itemId]) {
+        (gameState.inventory as any)[itemId] = Math.max(0, ((gameState.inventory as any)[itemId] || 0) - 1);
+      }
+      setPharmaInventory(prev => ({ ...prev, [itemId]: Math.max(0, (prev[itemId] || 0) - 1) }));
     }
 
     // UNDERCOVER COP CHECK!
@@ -427,6 +451,16 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
         });
         return next;
       });
+
+      if (onUpdatePharmaState && pharmaState) {
+        onUpdatePharmaState((prev: PharmaGameState) => ({
+          ...prev,
+          inventory: {
+            ...prev.inventory,
+            [item.id]: (prev.inventory[item.id] || 0) + 1
+          }
+        }));
+      }
 
       setPharmaInventory(prev => ({
         ...prev,
@@ -505,150 +539,216 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
       )}
 
       {/* TAB 1: Касса & Обслуживание Клиентов (Один за другим!) */}
-      {activeTab === 'counter' && currentCustomer && (
-        <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-6 shadow-xl max-w-4xl mx-auto">
+      {activeTab === 'counter' && isNightClosed && (
+        <div className="bg-gradient-to-b from-[#141224] to-[#0a0d16] border-2 border-indigo-500/50 p-6 sm:p-8 rounded-3xl text-center space-y-4 shadow-[0_0_35px_rgba(99,102,241,0.25)] max-w-4xl mx-auto">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center mx-auto text-3xl shadow-[0_0_20px_rgba(99,102,241,0.4)] animate-pulse">
+            🌙
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-mono uppercase tracking-widest text-indigo-400 font-bold">
+              [АПТЕКА ЗАКРЫТА НА НОЧЬ · 23:00 – 08:00]
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">
+              После 23:00 клиентов нет
+            </h2>
+            <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed font-sans">
+              Рабочий день аптеки завершен. Улицы опустели, клиенты разошлись по домам. Кассовое окно откроется в 08:00 утра после сна. Пора подводить итоги смены и ложиться спать.
+            </p>
+          </div>
+
+          <div className="pt-2 max-w-sm mx-auto">
+            {onTriggerDayEnd ? (
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  onTriggerDayEnd();
+                }}
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 hover:from-indigo-400 hover:to-purple-400 text-white font-mono font-bold text-xs cursor-pointer shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <span>🛏️ Завершить смену и лечь спать</span>
+              </button>
+            ) : (
+              <div className="text-xs font-mono text-indigo-300">
+                Используйте кнопку завершения дня в верхней панели
+              </div>
+            )}
+          </div>
+
+          {/* Day's sales summary preview */}
+          {salesHistory.length > 0 && (
+            <div className="pt-4 border-t border-white/5 text-left space-y-2">
+              <span className="text-[11px] font-mono text-slate-400 font-bold uppercase">История сегодняшней смены:</span>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {salesHistory.slice(0, 5).map(log => (
+                  <div key={log.id} className="p-2 rounded-xl bg-black/40 border border-white/5 flex justify-between items-center text-xs">
+                    <span className="text-slate-300">{log.avatar} {log.customerName}</span>
+                    <span className="text-emerald-400 font-mono font-bold">+${log.price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'counter' && !isNightClosed && currentCustomer && (
+        <div className="bg-slate-900/80 border border-slate-800 p-3.5 sm:p-6 rounded-2xl space-y-4 sm:space-y-6 shadow-xl max-w-4xl mx-auto">
           {/* Header Window */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-4xl shadow-inner">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3 sm:pb-4 gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-2xl sm:text-4xl shadow-inner shrink-0">
                 {currentCustomer.avatar}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold text-slate-100">{currentCustomer.name}</h3>
-                  <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
-                    Клиент у окошка
+                  <h3 className="text-base sm:text-xl font-bold text-slate-100">{currentCustomer.name}</h3>
+                  <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold shrink-0">
+                    У окошка
                   </span>
                 </div>
-                <div className="text-xs text-slate-400 flex items-center gap-2 mt-1">
-                  <span className="text-emerald-400 font-bold">Готов заплатить: ${currentCustomer.offeredPrice}</span>
+                <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                  <span className="text-emerald-400 font-bold">Оплата: ${currentCustomer.offeredPrice}</span>
                 </div>
               </div>
             </div>
 
             <button
               onClick={handleNextCustomer}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer min-h-[44px]"
             >
-              <RefreshCw className="w-4 h-4" /> Следующий Клиент
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Следующий</span>
             </button>
           </div>
 
           {/* Speech Dialogue */}
-          <div className="bg-slate-950 border border-purple-500/30 p-5 rounded-2xl space-y-2 relative">
-            <div className="text-xs text-purple-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="w-4 h-4" /> Обращение посетителя у окна кассы:
+          <div className="bg-slate-950 border border-purple-500/30 p-3.5 sm:p-5 rounded-2xl space-y-1.5 relative">
+            <div className="text-[11px] text-purple-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5" /> Обращение посетителя:
             </div>
-            <p className="text-base text-slate-100 font-medium italic">
+            <p className="text-sm sm:text-base text-slate-100 font-medium italic leading-relaxed">
               «{currentCustomer.dialogueText}»
             </p>
           </div>
 
           {/* Requested Item Badge & Prescription Check */}
-          <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-slate-950/80 p-3 sm:p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <div className="text-xs text-slate-400">Запрашиваемый товар:</div>
-              <div className="text-lg font-bold text-slate-100 mt-0.5">{currentCustomer.requestedItemName}</div>
+              <div className="text-[11px] text-slate-400">Запрашиваемый товар:</div>
+              <div className="text-base sm:text-lg font-bold text-slate-100 mt-0.5">{currentCustomer.requestedItemName}</div>
 
               {/* Status Tags */}
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {currentCustomer.categoryType === 'otc' && (
-                  <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> БЕЗРЕЦЕПТУРНЫЙ ПРЕПАРАТ
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Без рецепта
                   </span>
                 )}
 
                 {currentCustomer.categoryType === 'prescription' && (
-                  <span className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1">
-                    <ShieldAlert className="w-3.5 h-3.5" /> СТРОГО ПО РЕЦЕПТУ
+                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-bold flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3" /> По рецепту
                   </span>
                 )}
 
                 {currentCustomer.categoryType === 'narcotics' && (
-                  <span className="px-2.5 py-1 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-1">
-                    <Skull className="w-3.5 h-3.5" /> ЗАПРЕЩЕННОЕ ВЕЩЕСТВО (Из-под полы)
+                  <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1">
+                    <Skull className="w-3 h-3" /> Из-под полы
                   </span>
                 )}
 
-                {currentCustomer.hasPrescription && (
-                  <span className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs font-bold">
-                    Рецепт на руках ({currentCustomer.prescriptionNumber})
-                  </span>
+                {currentCustomer.categoryType === 'prescription' && (
+                  currentCustomer.hasPrescription ? (
+                    <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[11px] font-bold">
+                      📄 Рецепт #{currentCustomer.prescriptionNumber}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-bold">
+                      ❌ Рецепта нет
+                    </span>
+                  )
                 )}
               </div>
             </div>
 
             {/* Warehouse Stock Check */}
-            <div className="text-right shrink-0">
-              <div className="text-xs text-slate-400">На вашем складе:</div>
-              <div className="text-xl font-bold text-emerald-400 font-mono mt-0.5">
+            <div className="text-left sm:text-right shrink-0">
+              <div className="text-[11px] text-slate-400">На складе:</div>
+              <div className="text-base sm:text-xl font-bold text-emerald-400 font-mono mt-0.5">
                 {currentCustomer.categoryType === 'narcotics'
                   ? `${gameState?.inventory?.[currentCustomer.requestedItemId as keyof GameState['inventory']] || 0} ед.`
-                  : `${pharmaInventory[currentCustomer.requestedItemId] || 0} шт.`
+                  : `${getDrugStock(currentCustomer.requestedItemId)} шт.`
                 }
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-2">
+          {/* Action Buttons (2x2 on mobile, 4 in row on desktop) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
             <button
               onClick={handleSellOfficial}
               disabled={currentCustomer.categoryType === 'narcotics'}
-              className={`py-3.5 px-3 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-1 ${
+              className={`py-3 px-2 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-1 min-h-[48px] cursor-pointer active:scale-95 ${
                 currentCustomer.categoryType === 'narcotics'
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800'
                   : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'
               }`}
             >
-              <span className="flex items-center gap-1">🟢 Продать легально</span>
-              <span className="text-[10px] font-normal opacity-90">${currentCustomer.offeredPrice}</span>
+              <span className="flex items-center gap-1 text-[11px] sm:text-xs">🟢 Легально</span>
+              <span className="text-[10px] font-mono opacity-90">${currentCustomer.offeredPrice}</span>
             </button>
 
             {currentCustomer.categoryType === 'prescription' && (
-              <button
-                onClick={() => {
-                  const isFake = currentCustomer.isUndercoverCop || Math.random() < 0.3;
-                  setInspectionBlankItem({
-                    id: `BLANK-${Date.now()}`,
-                    blankLevel: 'form_107_1u',
-                    series: '107',
-                    number: '884920',
-                    doctorName: 'Д-р Петров В.С.',
-                    hospitalName: 'Городская Поликлиника №4',
-                    patientName: currentCustomer.name,
-                    drugId: currentCustomer.requestedItemId,
-                    drugName: currentCustomer.requestedItemName,
-                    prescribedDoseMg: 100,
-                    quantityUnits: 1,
-                    issueDateDay: 1,
-                    isForged: isFake,
-                    discrepancies: isFake ? ['expired_date', 'smudged_stamp'] : [],
-                    isValid: !isFake
-                  });
-                  setShowInspectionModal(true);
-                }}
-                className="py-3.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex flex-col items-center justify-center gap-1"
-              >
-                <span className="flex items-center gap-1">🔍 Проверить рецепт</span>
-                <span className="text-[10px] font-normal text-blue-100">Экспертиза</span>
-              </button>
+              currentCustomer.hasPrescription ? (
+                <button
+                  onClick={() => {
+                    const isFake = currentCustomer.isUndercoverCop || Math.random() < 0.3;
+                    setInspectionBlankItem({
+                      id: `BLANK-${Date.now()}`,
+                      blankLevel: 'form_107_1u',
+                      series: '107',
+                      number: '884920',
+                      doctorName: 'Д-р Петров В.С.',
+                      hospitalName: 'Городская Поликлиника №4',
+                      patientName: currentCustomer.name,
+                      drugId: currentCustomer.requestedItemId,
+                      drugName: currentCustomer.requestedItemName,
+                      prescribedDoseMg: 100,
+                      quantityUnits: 1,
+                      issueDateDay: 1,
+                      isForged: isFake,
+                      discrepancies: isFake ? ['expired_date', 'smudged_stamp'] : [],
+                      isValid: !isFake
+                    });
+                    setShowInspectionModal(true);
+                  }}
+                  className="py-3 px-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex flex-col items-center justify-center gap-1 min-h-[48px] cursor-pointer active:scale-95"
+                >
+                  <span className="flex items-center gap-1 text-[11px] sm:text-xs">🔍 Рецепт</span>
+                  <span className="text-[10px] font-normal text-blue-100">Экспертиза</span>
+                </button>
+              ) : (
+                <div className="py-2.5 px-2 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 font-bold text-xs flex flex-col items-center justify-center gap-0.5 min-h-[48px] text-center">
+                  <span className="flex items-center gap-1 text-[11px] text-rose-300">❌ Нет рецепта</span>
+                  <span className="text-[9px] text-rose-400/80 font-normal">Только из-под полы</span>
+                </div>
+              )
             )}
 
             <button
               onClick={handleSellUnderTheCounter}
-              className="py-3.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all flex flex-col items-center justify-center gap-1"
+              className="py-3 px-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all flex flex-col items-center justify-center gap-1 min-h-[48px] cursor-pointer active:scale-95"
             >
-              <span className="flex items-center gap-1">🔴 Из-под полы</span>
-              <span className="text-[10px] font-normal text-purple-100">${currentCustomer.offeredPrice}</span>
+              <span className="flex items-center gap-1 text-[11px] sm:text-xs">🔴 Из-под полы</span>
+              <span className="text-[10px] font-mono text-purple-100">${currentCustomer.offeredPrice}</span>
             </button>
 
             <button
               onClick={handleRefuseSale}
-              className="py-3.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-all flex flex-col items-center justify-center gap-1"
+              className="py-3 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-all flex flex-col items-center justify-center gap-1 min-h-[48px] cursor-pointer active:scale-95"
             >
-              <span className="flex items-center gap-1">⚪ Отказать</span>
-              <span className="text-[10px] font-normal text-slate-400">Пропуск</span>
+              <span className="flex items-center gap-1 text-[11px] sm:text-xs">⚪ Отказать</span>
+              <span className="text-[10px] text-slate-400">Безопасно</span>
             </button>
           </div>
 
@@ -766,9 +866,17 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
       {/* TAB 2: Профили Постоянных Клиентов (База) */}
       {activeTab === 'profiles' && (
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
-            <User className="w-4 h-4" /> База Постоянных Клиентов Аптеки
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+              <User className="w-4 h-4" /> База Постоянных Клиентов Аптеки
+            </h3>
+            {isNightClosed && (
+              <span className="text-xs font-mono px-3 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold flex items-center gap-1.5">
+                <span>🌙</span>
+                <span>После 23:00 клиенты спят до 08:00 утра</span>
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {pharmaState?.clients?.map((client) => (
@@ -888,17 +996,143 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
               </div>
             )}
 
-            {/* 17 Pharma Stock */}
+            {/* 22 Pharma Stock */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
-                <Pill className="w-4 h-4" /> Запасы 17 Аптечных Препаратов на Полках
-              </h4>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                  <Pill className="w-4 h-4" /> Запасы 22 Аптечных Препаратов на Полках
+                </h4>
+                {shelfSubgroupFilter !== 'all' && (
+                  <button
+                    onClick={() => setShelfSubgroupFilter('all')}
+                    className="text-xs text-purple-400 underline font-mono cursor-pointer"
+                  >
+                    Показать все группы (22)
+                  </button>
+                )}
+              </div>
+
+              {/* Group Filter Chips for Pharmacy Stock */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 font-mono text-[11px]">
+                <button
+                  onClick={() => setShelfSubgroupFilter('all')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'all'
+                      ? 'bg-purple-600 text-white border-purple-500 shadow-md'
+                      : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🧪 Все группы (22)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('opioids')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'opioids'
+                      ? 'bg-purple-600 text-white border-purple-500 shadow-md'
+                      : 'bg-slate-950 text-purple-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🍼 Опиоиды (5)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('benzodiazepines')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'benzodiazepines'
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                      : 'bg-slate-950 text-blue-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  💊 Бензо (2)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('gabapentinoids')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'gabapentinoids'
+                      ? 'bg-cyan-600 text-white border-cyan-500 shadow-md'
+                      : 'bg-slate-950 text-cyan-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  ❄️ Габа (2)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('antidepressants')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'antidepressants'
+                      ? 'bg-amber-600 text-white border-amber-500 shadow-md'
+                      : 'bg-slate-950 text-amber-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🟡 Антидепр (2)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('nootropics')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'nootropics'
+                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                      : 'bg-slate-950 text-indigo-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🧠 Ноотропы (3)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('analgesics')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'analgesics'
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-md'
+                      : 'bg-slate-950 text-rose-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🩹 Обезбол (4)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('antihistamines')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'antihistamines'
+                      ? 'bg-teal-600 text-white border-teal-500 shadow-md'
+                      : 'bg-slate-950 text-teal-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🌿 Аллергия (1)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('vitamins')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'vitamins'
+                      ? 'bg-yellow-600 text-white border-yellow-500 shadow-md'
+                      : 'bg-slate-950 text-yellow-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🍋 Витамины (2)
+                </button>
+                <button
+                  onClick={() => setShelfSubgroupFilter('sorbents')}
+                  className={`px-2 py-1.5 rounded-lg font-bold transition-all border cursor-pointer ${
+                    shelfSubgroupFilter === 'sorbents'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                      : 'bg-slate-950 text-emerald-400/80 hover:text-white border-slate-800'
+                  }`}
+                >
+                  🫀 Сорбенты (1)
+                </button>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {pharmaData.items.map((itemAny) => {
+                {pharmaData.items.filter((itemAny) => {
+                  if (shelfSubgroupFilter === 'all') return true;
+                  const drugInfo = PHARMA_DRUGS_CATALOG.find(d => d.id === itemAny.id);
+                  if (!drugInfo) return true;
+                  if (shelfSubgroupFilter === 'sorbents' || shelfSubgroupFilter === 'digestive') {
+                    return drugInfo.subgroup === 'sorbents' || (drugInfo.subgroup as any) === 'digestive';
+                  }
+                  if (shelfSubgroupFilter === 'analgesics' || shelfSubgroupFilter === 'antispasmodics') {
+                    return drugInfo.subgroup === 'analgesics' || (drugInfo.subgroup as any) === 'antispasmodics';
+                  }
+                  return drugInfo.subgroup === shelfSubgroupFilter;
+                }).map((itemAny) => {
                   const item = itemAny as PharmaItemConfig;
-                  const count = (pharmaState?.inventory?.[item.id] || 0) + ((gameState?.inventory as any)?.[item.id] || 0) + (pharmaInventory[item.id] || 0);
+                  const count = getDrugStock(item.id);
                   const rarityColor = activeRarityColor(item.rarity);
+                  const drugInfo = PHARMA_DRUGS_CATALOG.find(d => d.id === item.id);
 
                   return (
                     <div key={item.id} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
@@ -906,7 +1140,12 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
                         <div className="w-2.5 h-7 rounded-full" style={{ backgroundColor: rarityColor }} />
                         <div>
                           <div className="font-bold text-slate-100">{item.name}</div>
-                          <div className="text-[10px] text-slate-500">{item.shelfNumber}</div>
+                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                            <span>{item.shelfNumber}</span>
+                            {drugInfo && (
+                              <span className="text-purple-400/90 font-mono">({drugInfo.subgroup})</span>
+                            )}
+                          </div>
                         </div>
                       </div>
 

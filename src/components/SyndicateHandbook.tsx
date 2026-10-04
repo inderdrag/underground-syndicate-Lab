@@ -20,6 +20,18 @@ import {
   Cpu,
   Eye,
   Scale,
+  Clock,
+  Pill,
+  Award,
+  Lock,
+  RotateCw,
+  Box,
+  Sliders,
+  Thermometer,
+  FileText,
+  Activity,
+  PackageCheck,
+  Check,
 } from 'lucide-react';
 import { sounds } from '../engine/soundEffects';
 import { Language } from '../i18n/translations';
@@ -29,20 +41,28 @@ interface SyndicateHandbookProps {
   language: Language;
 }
 
-type SectionKey = 'botany' | 'mycology' | 'synthesis' | 'powder' | 'side_jobs' | 'effects' | 'economy' | 'pharma';
+type SectionKey =
+  | 'botany'
+  | 'mycology'
+  | 'synthesis'
+  | 'powder'
+  | 'pharma'
+  | 'side_jobs'
+  | 'effects'
+  | 'economy';
 
 export const SyndicateHandbook: React.FC<SyndicateHandbookProps> = ({ language }) => {
   const [activeSection, setActiveSection] = useState<SectionKey>('botany');
 
-  const sections: { id: SectionKey; title: string; icon: typeof Leaf }[] = [
-    { id: 'botany', title: '1. Ботаника & Гроубокс', icon: Leaf },
-    { id: 'mycology', title: '2. Микология «Астрал»', icon: Moon },
-    { id: 'synthesis', title: '3. Хим-синтез (ЛСД & Кокаин)', icon: FlaskConical },
-    { id: 'powder', title: '4. Порошковый цех «Аврора»', icon: Boxes },
-    { id: 'side_jobs', title: '5. Закладки & Разнос товара', icon: Zap },
-    { id: 'effects', title: '6. Эффекты & Передозировка', icon: Sparkles },
-    { id: 'economy', title: '7. Экономика, Сбыт & Розыск', icon: TrendingUp },
-    { id: 'pharma', title: '8. Фармацевтика & Аптечный Сбыт', icon: FlaskConical },
+  const sections: { id: SectionKey; title: string; subtitle: string; icon: typeof Leaf }[] = [
+    { id: 'botany', title: '1. Ботаника: Выращивание', subtitle: 'Полив, NPK, DWC, SCROG, сушка и пролечка', icon: Leaf },
+    { id: 'mycology', title: '2. Микология «Астрал»', subtitle: 'Монотубы, субстраты, сублимация и фасовка', icon: Moon },
+    { id: 'synthesis', title: '3. Хим-синтез (ЛСД & Кокаин)', subtitle: '5 шагов ЛСД (мешалка 20с) и 5 шагов Кокаина 96%', icon: FlaskConical },
+    { id: 'powder', title: '4. Цех порошка «Аврора»', subtitle: '4 реагента, ротор 2800 RPM, пресс 72 Bar', icon: Boxes },
+    { id: 'pharma', title: '5. Варка Фармы (22 Препарата)', subtitle: 'Мини-игры варки, бланки 107-1/у, 148, 107/у-НП', icon: Pill },
+    { id: 'side_jobs', title: '6. Подработки & Закладки', subtitle: '3 района, дроны, облавы, взятки ($40)', icon: Zap },
+    { id: 'effects', title: '7. Дегустация & 18 Шейдеров', subtitle: '4 дозировки на лету, вертиго Лирики, детокс', icon: Sparkles },
+    { id: 'economy', title: '8. Экономика, Darknet & Розыск', subtitle: 'Крипта, шлюз -8%, панели 400W, тепло и Heat', icon: TrendingUp },
   ];
 
   return (
@@ -58,12 +78,12 @@ export const SyndicateHandbook: React.FC<SyndicateHandbookProps> = ({ language }
               <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
                 [РУКОВОДСТВО СИНДИКАТА · FIELD MANUAL]
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                Полная база знаний лаборатории
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold">
+                Исчерпывающие пошаговые инструкции
               </span>
             </div>
             <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">
-              Инструкции по культивации, синтезу, эффектам и экономике
+              Полная база знаний лаборатории: рецепты, варка, культивация и сбыт
             </h1>
           </div>
         </div>
@@ -84,522 +104,472 @@ export const SyndicateHandbook: React.FC<SyndicateHandbookProps> = ({ language }
                   sounds.playClick();
                   setActiveSection(sec.id);
                 }}
-                className={`w-full p-3 rounded-2xl border text-left text-xs font-mono font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+                className={`w-full p-3 rounded-2xl border text-left text-xs font-mono transition-all cursor-pointer ${
                   isActive
                     ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-md ring-1 ring-cyan-500/30'
                     : 'bg-[#080c13] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-                <span>{sec.title}</span>
+                <div className="flex items-center gap-2 font-bold">
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                  <span className="truncate">{sec.title}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-1 pl-6 font-normal truncate">
+                  {sec.subtitle}
+                </div>
               </button>
             );
           })}
         </div>
 
         {/* Content Pane */}
-        <div className="md:col-span-3 bg-[#0b1017] border border-white/[0.08] rounded-2xl p-5 space-y-6 shadow-xl text-slate-200 text-xs leading-relaxed">
-          {/* 1. BOTANY GUIDE */}
+        <div className="md:col-span-3 bg-[#0b1017] border border-white/[0.08] rounded-2xl p-4 sm:p-6 space-y-6 shadow-xl text-slate-200 text-xs leading-relaxed max-h-[85vh] overflow-y-auto">
+          {/* ================= 1. BOTANY GUIDE ================= */}
           {activeSection === 'botany' && (
             <div className="space-y-5">
               <div className="border-b border-white/10 pb-3">
                 <h2 className="text-base font-bold text-emerald-400 flex items-center gap-2 font-mono">
                   <Leaf className="w-5 h-5" />
-                  <span>1. Ботаника: Полное руководство по выращиванию каннабиса</span>
+                  <span>1. Ботаника: Ускоренное выращивание, уход, сушка и пролечка</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  От проращивания феминизированных семян до пролечки премиальных шишек высшего грейда.
+                  Подробный гид по ультрабыстрой культивации (полный цикл созревания занимает всего 2–4 игровых часа).
                 </p>
               </div>
 
-              {/* Strains Grid with Artwork */}
-              <div className="space-y-2">
-                <h3 className="font-bold text-white text-xs font-mono uppercase tracking-wider text-emerald-300">
-                  Сорта каннабиса синдиката:
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
-                  <div className="p-2.5 bg-[#070b10] rounded-xl border border-emerald-500/20 space-y-2 text-center">
-                    <ProductArtwork productId="seed_ww" size="sm" className="mx-auto" />
-                    <div>
-                      <strong className="text-white text-xs block">White Widow</strong>
-                      <span className="text-[10px] text-emerald-400">18-22% THC · 60 дней</span>
-                    </div>
-                  </div>
+              {/* Step-by-Step Cultivation Guide */}
+              <div className="space-y-3 font-mono">
+                <div className="p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl space-y-2.5">
+                  <strong className="text-emerald-300 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    Пошаговая инструкция выращивания (от семени до готовых шишек):
+                  </strong>
 
-                  <div className="p-2.5 bg-[#070b10] rounded-xl border border-amber-500/20 space-y-2 text-center">
-                    <ProductArtwork productId="seed_amnesia" size="sm" className="mx-auto" />
-                    <div>
-                      <strong className="text-white text-xs block">Amnesia Haze</strong>
-                      <span className="text-[10px] text-amber-400">22-25% THC · 70 дней</span>
+                  <div className="space-y-2 text-[11px] text-slate-300">
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-white block">Шаг 1. Покупка лицензии и семян</strong>
+                      <p className="text-slate-400">
+                        Купите «Лицензию Гровера» ($150) в Гроушопе или Мегамаркете. Выберите семена одного из 4 сортов (White Widow, Amnesia Haze, Gorilla Glue #4, Purple Haze) и нажмите «Посадить семя».
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="p-2.5 bg-[#070b10] rounded-xl border border-purple-500/20 space-y-2 text-center">
-                    <ProductArtwork productId="seed_gorilla" size="sm" className="mx-auto" />
-                    <div>
-                      <strong className="text-white text-xs block">Gorilla Glue #4</strong>
-                      <span className="text-[10px] text-purple-400">25-28% THC · 65 дней</span>
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-cyan-300 block">Шаг 2. Выбор субстрата</strong>
+                      <p className="text-slate-400">
+                        • <strong>Гидропоника DWC:</strong> дает максимальный множитель роста <strong>+35%</strong>.<br />
+                        • <strong>Кокосовый субстрат:</strong> ускорение <strong>+20%</strong>.<br />
+                        • <strong>Органическая почва:</strong> базовая простота ухода.
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="p-2.5 bg-[#070b10] rounded-xl border border-pink-500/20 space-y-2 text-center">
-                    <ProductArtwork productId="seed_purple" size="sm" className="mx-auto" />
-                    <div>
-                      <strong className="text-white text-xs block">Purple Haze</strong>
-                      <span className="text-[10px] text-pink-400">20-23% THC · 65 дней</span>
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-emerald-300 block">Шаг 3. Регулярный полив (Мгновенный буст +8% роста!)</strong>
+                      <p className="text-slate-400">
+                        Держите влажность в оптимальной зеленой зоне <strong>50% – 75%</strong>. Каждый клик полива осмотической водой RO моментально добавляет <strong>+8% к созреванию куста</strong>!
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-amber-300 block">Шаг 4. Внесение удобрений (Мгновенный буст +12% роста!)</strong>
+                      <p className="text-slate-400">
+                        • <strong>N-Max (Азот):</strong> вносите на вегетативной фазе для взрывного набора зеленой массы.<br />
+                        • <strong>PK 13/14 Бустер:</strong> вносите на стадии цветения для наливания плотных смолистых шишек.<br />
+                        • <strong>Биогумус:</strong> повышает естественный иммунитет растения. Каждая подкормка дает <strong>+12% мгновенного прогресса</strong>!
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-purple-300 block">Шаг 5. Освещение 1000W и Сетка SCROG</strong>
+                      <p className="text-slate-400">
+                        Установите мощную LED-лампу на 1000W (+35% скорости) и натяните сетку SCROG (+15% к скорости, +25% к финальному весу урожая).
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-emerald-400 block">Шаг 6. Харвест, Сушка и Пролечка в банках Curing Jars</strong>
+                      <p className="text-slate-400">
+                        При достижении 100% нажмите «Собрать урожай». Высушите шишки и проведите пролечку в стеклянных банках — это поднимет чистоту до 96–98% и позволит продавать товар по максимальной цене ($18–$35/г).
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Substrates */}
-              <div className="space-y-2">
-                <h3 className="font-bold text-white text-xs font-mono uppercase tracking-wider text-cyan-300">
-                  Типы субстратов и среды:
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono">
-                  <div className="p-3 bg-[#070b10] rounded-xl border border-white/10 space-y-1">
-                    <strong className="text-emerald-300 text-xs">Почва (Soil)</strong>
-                    <p className="text-[11px] text-slate-400">
-                      Прощает ошибки, удерживает буфер питательных веществ. Оптимальный выбор для новичков.
-                    </p>
-                  </div>
-                  <div className="p-3 bg-[#070b10] rounded-xl border border-white/10 space-y-1">
-                    <strong className="text-cyan-300 text-xs">Гидропоника (DWC)</strong>
-                    <p className="text-[11px] text-slate-400">
-                      Максимальная скорость усвоения NPK (+40% к росту), требует строгого контроля pH 5.8.
-                    </p>
-                  </div>
-                  <div className="p-3 bg-[#070b10] rounded-xl border border-white/10 space-y-1">
-                    <strong className="text-purple-300 text-xs">Кокосовое волокно (Coco)</strong>
-                    <p className="text-[11px] text-slate-400">
-                      Идеальная аэрация корневой системы, высокая защита от перелива и гнили.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Nutrients & pH Corridor */}
-              <div className="space-y-2">
-                <h3 className="font-bold text-white text-xs font-mono uppercase tracking-wider text-amber-300">
-                  Питание NPK и контроль pH коридора:
-                </h3>
-                <ul className="space-y-1.5 list-disc list-inside text-slate-300">
-                  <li><strong>pH Коридор:</strong> Держите уровень кислотности в диапазоне <strong>5.8 – 6.5 pH</strong>. Отклонение блокирует всасывание макроэлементов (Lockout).</li>
-                  <li><strong>N-Max (Азот):</strong> Вносите на стадии всходов и развивающегося куста для быстрого роста листьев и стеблей.</li>
-                  <li><strong>PK 13/14 (Фосфор и Калий):</strong> Вносите на стадии цветения для формирования плотных смолистых соцветий.</li>
-                  <li><strong>Осмотическая вода:</strong> Предотвращает отложение солей в субстрате.</li>
-                </ul>
-              </div>
-
-              {/* Training and Harvest */}
-              <div className="space-y-2">
-                <h3 className="font-bold text-white text-xs font-mono uppercase tracking-wider text-purple-300">
-                  Формирование куста, сбор и пролечка:
-                </h3>
-                <p>
-                  Установка сетки <strong>SCROG</strong> распределяет колы равномерно под лампами, увеличивая урожайность на <strong>+25%</strong>. При достижении 100% созревания проведите <strong>Сушку (7-10 дней)</strong> и <strong>Пролечку в банках</strong> для достижения 95%+ чистоты и пиковой рыночной стоимости.
-                </p>
               </div>
             </div>
           )}
 
-          {/* 2. MYCOLOGY GUIDE */}
+          {/* ================= 2. MYCOLOGY GUIDE ================= */}
           {activeSection === 'mycology' && (
             <div className="space-y-5">
               <div className="border-b border-white/10 pb-3">
                 <h2 className="text-base font-bold text-cyan-400 flex items-center gap-2 font-mono">
                   <Moon className="w-5 h-5" />
-                  <span>2. Микология: Культивация псило-грибов «Астрал»</span>
+                  <span>2. Микология: Культивация, субстраты, сублимация и фасовка грибов «Астрал»</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  Засев монотубов, микроклиматический контроль, сублимация и фасовка.
+                  Руководство по засеву монотубов, контролю FAE-аэрации и созданию фасованного премиум-продукта.
                 </p>
               </div>
 
-              <div className="space-y-3 font-mono">
-                <div className="p-3 bg-[#070b10] rounded-xl border border-cyan-500/30 space-y-1.5">
-                  <strong className="text-cyan-300 text-xs">Цепочка запуска:</strong>
-                  <p className="text-[11px] text-slate-300">
-                    Купите в Мегамаркете: <strong>1 Мицелиевый набор + 50г Питательной смеси A + 1 Контейнер</strong> ➔ Нажмите «Засеять новую колонию».
-                  </p>
-                </div>
+              <div className="space-y-3 font-mono text-[11px] text-slate-300">
+                <div className="p-3.5 bg-cyan-950/25 border border-cyan-500/40 rounded-2xl space-y-2">
+                  <strong className="text-cyan-300 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    Пошаговый цикл микологии:
+                  </strong>
 
-                <div className="space-y-2">
-                  <strong className="text-white text-xs uppercase tracking-wide">6 Визуальных стадий развития:</strong>
-                  <ol className="list-decimal list-inside space-y-1 text-slate-300 text-[11px]">
-                    <li><strong>Начало (0-20%):</strong> Споровые биолюминесцентные точки.</li>
-                    <li><strong>Маленький росток (20-40%):</strong> Разветвление тонких нитей гифов.</li>
-                    <li><strong>Формирование колонии (40-60%):</strong> Сплошной неоновый мицелиальный ковер.</li>
-                    <li><strong>Появление грибов (60-80%):</strong> Первые золотистые примордии и шляпки.</li>
-                    <li><strong>Зрелая колония (80-99%):</strong> Пышные биолюминесцентные грибы.</li>
-                    <li><strong>Готовность к сбору (100%):</strong> Споровое свечение, урожай ~85-120г.</li>
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-white block">1. Закупка сырья (Требуется Споровый Сертификат $350):</strong>
+                      <p className="text-slate-400">
+                        В магазине купите: <strong>1 Набор мицелия «Астрал» ($60) + 50г Питательной смеси A ($35) + 1 Герметичный монотуб ($80)</strong>.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-indigo-300 block">2. Засев и 6 стадий развития:</strong>
+                      <p className="text-slate-400">
+                        Нажмите «Засеять новую колонию». Монотуб проходит 6 визуальных фаз: Споры (0-20%) ➔ Гифы (20-40%) ➔ Мицелиальный ковер (40-60%) ➔ Примордии (60-80%) ➔ Зрелые грибы (80-99%) ➔ Сбор (100%).
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-cyan-300 block">3. Микроклимат и стимуляторы роста:</strong>
+                      <p className="text-slate-400">
+                        Поддерживайте температуру 24–27°C и влажность 90%. Применяйте «Стимулятор роста» (+30% к скорости) и «Стабилизатор среды» для мгновенного снятия любых болезней и патогенов.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                      <strong className="text-emerald-300 block">4. Сублимационная сушка (Freeze-Drying) и Фасовка:</strong>
+                      <p className="text-slate-400">
+                        Соберите урожай (~85–120г) ➔ Перейдите во вкладку «3. Обработка» ➔ Запустите вакуумную сублимацию ➔ Расфасуйте в:
+                        <br />• <strong>Крафтовые пакеты 5г:</strong> продажа по $140.
+                        <br />• <strong>Банки микродозинга 25г:</strong> продажа по $680.
+                        <br />• <strong>Вакуум-блоки 100г:</strong> оптовая цена $2,850.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= 3. SYNTHESIS GUIDE ================= */}
+          {activeSection === 'synthesis' && (
+            <div className="space-y-5 font-mono">
+              <div className="border-b border-white/10 pb-3">
+                <h2 className="text-base font-bold text-purple-400 flex items-center gap-2">
+                  <FlaskConical className="w-5 h-5" />
+                  <span>3. Хим-синтез: Как варить ЛСД-25 и рафинировать Кокаин Fishscale 96%</span>
+                </h2>
+                <p className="text-slate-400 text-xs mt-1">
+                  Исчерпывающий разбор всех 5 этапов синтеза ЛСД и 5 этапов очистки кокаина высокой чистоты.
+                </p>
+              </div>
+
+              {/* LSD 5 STEPS */}
+              <div className="p-4 bg-purple-950/20 border border-purple-500/40 rounded-2xl space-y-3">
+                <strong className="text-purple-300 text-sm flex items-center gap-2 uppercase tracking-wide">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  Инструкция по синтезу ЛСД-25 (Все 5 Этапов):
+                </strong>
+
+                <div className="space-y-2 text-[11px] text-slate-300">
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-white/10 space-y-1">
+                    <div className="font-bold text-indigo-300">Этап 1: Сборка стеклянного контура («Схема реактора»)</div>
+                    <p className="text-slate-400">
+                      Соедините 5 портов: Круглодонная колба ➔ Дефлегматор ➔ Термометр ➔ Вакуумный алонж ➔ Приемник. При 5 правильных соединениях открывается переход.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-white/10 space-y-1">
+                    <div className="font-bold text-cyan-300">Этап 2: Водяная баня («Термостатирование»)</div>
+                    <p className="text-slate-400">
+                      Удерживайте температуру в зеленом коридоре <strong>42°C – 48°C (идеал 45°C)</strong> в течение 10 секунд. Не допускайте перегрева выше 55°C.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-amber-500/40 space-y-1">
+                    <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Этап 3: Магнитная мешалка («Вихрь») — Таймер 20 секунд!</span>
+                    </div>
+                    <p className="text-slate-400">
+                      Нажимайте импульсы вращения, удерживая стрелку тахометра в зеленой зоне <strong>450 – 600 RPM</strong> в течение ровно <strong>20 секунд</strong>. Это обеспечивает идеальную реакцию пептидного связывания.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-rose-500/30 space-y-1">
+                    <div className="font-bold text-rose-300">Этап 4: Хроматография на силикагеле под Safelight</div>
+                    <p className="text-slate-400">
+                      Обязательно включите красный неактиничный свет (Safelight) — обычный свет разрушает d-изомер. Дождитесь, когда светящаяся полоса d-ЛСД войдет в фокусное окно, и перекройте кран.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-emerald-500/30 space-y-1">
+                    <div className="font-bold text-emerald-300">Этап 5: Пропитка листа марок («Капля за каплей»)</div>
+                    <p className="text-slate-400">
+                      Нанесите пипеткой точную дозу (150 мкг) на 100 перфорированных квадратиков арт-блока. Готовый лист поступает на склад (рыночная стоимость: <strong>~$3,850</strong>).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* COCAINE 5 STEPS */}
+              <div className="p-4 bg-amber-950/20 border border-amber-500/40 rounded-2xl space-y-3">
+                <strong className="text-amber-300 text-sm flex items-center gap-2 uppercase tracking-wide">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  Инструкция по рафинированию Кокаина Fishscale 96% (Все 5 Этапов):
+                </strong>
+
+                <div className="space-y-2 text-[11px] text-slate-300">
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-white/10 space-y-1">
+                    <div className="font-bold text-amber-300">Этап 1: Экстракция и расслоение фаз (Таймер 10 секунд)</div>
+                    <p className="text-slate-400">
+                      Удерживайте ползунок крана на дрейфующей красной точке раздела эфирного и водного слоев. Таймер 10 секунд считает непрерывно без сбоев.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-white/10 space-y-1">
+                    <div className="font-bold text-cyan-300">Этап 2: 3-цикловая промывка растворителем</div>
+                    <p className="text-slate-400">
+                      1. Залейте 40–60 мл чистого эфира ➔ 2. Удерживайте кнопку встряхивания делительной воронки до 100% ➔ 3. Слейте примеси и перекройте кран на отметке 20 мл (повторить 3 раза для максимальной чистоты).
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-white/10 space-y-1">
+                    <div className="font-bold text-blue-300">Этап 3: Кристаллизация соли HCl</div>
+                    <p className="text-slate-400">
+                      При охлаждении реактора до 4°C образуются монокристаллы. Кликайте по всем появляющимся кристаллам соли.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-white/10 space-y-1">
+                    <div className="font-bold text-purple-300">Этап 4: Вакуумное сито 200 мкм</div>
+                    <p className="text-slate-400">
+                      Нажимайте «Просеять фракцию» для измельчения комков (6 чистых фракций).
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/50 rounded-xl border border-emerald-500/40 space-y-1">
+                    <div className="font-bold text-emerald-300">Этап 5: Гидравлический пресс 96%</div>
+                    <p className="text-slate-400">
+                      Откалибруйте давление в зеленую зону <strong>65–80 PSI (идеал 72 PSI)</strong> и запечатайте зеркальный килограммовый брикет чистотой 96%+ ($85/г).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= 4. POWDER REFINERY GUIDE ================= */}
+          {activeSection === 'powder' && (
+            <div className="space-y-5 font-mono">
+              <div className="border-b border-white/10 pb-3">
+                <h2 className="text-base font-bold text-amber-400 flex items-center gap-2">
+                  <Boxes className="w-5 h-5" />
+                  <span>4. Порошковый цех: Как варить и прессовать порошок «Аврора»</span>
+                </h2>
+                <p className="text-slate-400 text-xs mt-1">
+                  Формула 4 реагентов, синхронизация помола в роторном реакторе и гидравлическое брикетирование.
+                </p>
+              </div>
+
+              <div className="space-y-3 text-[11px] text-slate-300">
+                <div className="p-3.5 bg-amber-950/25 border border-amber-500/30 rounded-2xl space-y-2">
+                  <strong className="text-amber-300 text-xs uppercase tracking-wide">
+                    Пошаговый рецепт порошка «Аврора»:
+                  </strong>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                    <li><strong>Загрузка реагентов в реактор:</strong> 10г Белого реагента + 10г Тёмного сырья + 10г Фильтр-порошка + 10г Стабилизатора.</li>
+                    <li><strong>Роторный помол:</strong> Удерживайте ползунок скорости вращения в диапазоне <strong>2600 – 3100 RPM</strong>.</li>
+                    <li><strong>Гидравлическое прессование:</strong> Зафиксируйте давление на отметке <strong>68 – 78 Bar</strong>.</li>
+                    <li><strong>Фасовка:</strong> Расфасуйте в 1г Зиплоки ($75), 10г Брикеты ($700) или 50г Вакуум-блоки ($3,400).</li>
                   </ol>
                 </div>
-
-                <div className="p-3 bg-[#070b10] rounded-xl border border-emerald-500/30 space-y-1.5">
-                  <strong className="text-emerald-300 text-xs">Обработка и Фасовка:</strong>
-                  <p className="text-[11px] text-slate-300">
-                    После сбора перейдите во вкладку «3. Обработка» ➔ Запустите вакуумную сублимационную сушку ➔ Расфасуйте в <strong>5г Крафтовые пакеты ($140)</strong>, <strong>25г Банки микродозинга ($680)</strong> или <strong>100г Вакуум-боксы ($2,850)</strong>.
-                  </p>
-                </div>
               </div>
             </div>
           )}
 
-          {/* 3. SYNTHESIS GUIDE */}
-          {activeSection === 'synthesis' && (
-            <div className="space-y-5">
+          {/* ================= 5. PHARMA LAB & COOKING ================= */}
+          {activeSection === 'pharma' && (
+            <div className="space-y-5 font-mono">
               <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-bold text-purple-400 flex items-center gap-2 font-mono">
-                  <FlaskConical className="w-5 h-5" />
-                  <span>3. Пошаговое руководство: Как делать ЛСД-25 и Кокаин</span>
+                <h2 className="text-base font-bold text-cyan-400 flex items-center gap-2">
+                  <Pill className="w-5 h-5 text-cyan-400" />
+                  <span>5. Фармацевтика: Инструкции по варке 22 препаратов и проверке рецептов</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  Интуитивно понятная химическая инструкция по стадиям, температуре, свету и пропитке.
+                  Механика мини-игр синтеза таблеток, капсул и ампул, экспертиза бланков 107-1/у, 148-1/у-88 и 107/у-НП.
                 </p>
               </div>
 
-              <div className="space-y-4 font-mono">
-                <div className="p-3.5 bg-[#060a12] rounded-2xl border border-purple-500/40 space-y-3">
-                  <strong className="text-purple-300 text-xs flex items-center gap-2 uppercase tracking-wide">
-                    <Sparkles className="w-4 h-4 text-purple-400" />
-                    Пошаговый алгоритм производства ЛСД-25 (4 Простых Шага):
+              {/* 4 Pharma Categories */}
+              <div className="space-y-3 text-[11px]">
+                <div className="p-3.5 bg-slate-900/90 border border-emerald-500/30 rounded-2xl space-y-1.5">
+                  <div className="font-bold text-emerald-400 text-xs">Группа A. Безрецептурные препараты (Полки A):</div>
+                  <p className="text-slate-300">
+                    • <strong>Парацетамол, Ибупрофен, Мелатонин, Аспирин, Уголь, Лоратадин, Но-шпа, Витамин C.</strong><br />
+                    <em>Как варить:</em> Стандартный калибровочный ползунок гранулирования. Выравнивайте стрелку в зеленую зону и прессуйте блистер.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-slate-900/90 border border-blue-500/30 rounded-2xl space-y-1.5">
+                  <div className="font-bold text-blue-400 text-xs">Группа B. Рецептурные препараты (Сейфы B / Бланк 107-1/у):</div>
+                  <p className="text-slate-300">
+                    • <strong>Габапентин, Лирика, Золофт, Прозак, Трамадол.</strong><br />
+                    <em>Как варить:</em> Медленная варка с поддержанием температуры + удержание капсулятора по таймеру. Не допускайте перегрева.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-slate-900/90 border border-amber-500/30 rounded-2xl space-y-1.5">
+                  <div className="font-bold text-amber-400 text-xs">Группа C. Особый Учёт (Сейфы C / Бланк 148-1/у-88):</div>
+                  <p className="text-slate-300">
+                    • <strong>Золпидем, Ксанакс, Модафинил, Риталин, Кодеин.</strong><br />
+                    <em>Как варить:</em> Высокоточный ползунок с узким допуском (±2%) и ритмическая экстракция алкалоидов.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-slate-900/90 border border-rose-500/30 rounded-2xl space-y-1.5">
+                  <div className="font-bold text-rose-400 text-xs">Группа D. Элитные Препараты (Подсобка D / Спецбланк 107/у-НП):</div>
+                  <p className="text-slate-300">
+                    • <strong>Аддерол, Оксикодон, Морфин, Фентанил.</strong><br />
+                    <em>Как варить:</em> Стерильная ампульная фильтрация и микродозирование активной матрицы.
+                  </p>
+                </div>
+
+                {/* Blanks Verification Rules */}
+                <div className="p-3.5 bg-amber-950/25 border border-amber-500/40 rounded-2xl space-y-1.5">
+                  <strong className="text-amber-300 text-xs flex items-center gap-1">
+                    <ShieldAlert className="w-4 h-4 text-amber-400" /> Экспертиза рецептурных бланков:
                   </strong>
-
-                  <div className="space-y-2.5 text-[11px] text-slate-300">
-                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                      <div className="font-bold text-indigo-300">Шаг 1: Запуск и Экстракция прекурсоров</div>
-                      <p className="text-slate-400">
-                        В Мегамаркете купите лицензию синтеза, <strong>1 Культуру спорыньи</strong> и <strong>50 мл Диэтиламина</strong>. Нажмите кнопку <strong>«+ Запустить синтез ЛСД-25»</strong>.
-                      </p>
-                    </div>
-
-                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                      <div className="font-bold text-purple-300">Шаг 2: Настройка Реакции (Температура и Мешалка)</div>
-                      <p className="text-slate-400">
-                        Установите ползунок температуры в зеленую зону <strong>42°C – 48°C (идеал: 45°C)</strong> и скорость магнитной мешалки на <strong>450 – 600 RPM</strong>. Нажмите <strong>«Перейти к следующей стадии»</strong>.
-                      </p>
-                    </div>
-
-                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                      <div className="font-bold text-rose-300">Шаг 3: Колоночная очистка и ВКЛЮЧЕНИЕ Неактиничного света (Safelight)</div>
-                      <p className="text-slate-400">
-                        <strong>КРИТИЧЕСКИ ВАЖНО:</strong> Обязательно нажмите тумблер <strong>«Неактиничный свет (Safelight)»</strong>! Обычный свет разрушает чистоту партии на <strong>-1% в час</strong>. После очистки нажмите <strong>«Перейти к дозированию»</strong>.
-                      </p>
-                    </div>
-
-                    <div className="p-2.5 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                      <div className="font-bold text-amber-300">Шаг 4: Пропитка арт-блока перфорированных марок</div>
-                      <p className="text-slate-400">
-                        Выберите дозу (например, 150 мкг) и нажмите <strong>«Завершить пропитку марок»</strong>. Готовый лист из 900 табов поступит на склад (стоимость листа: <strong>~$3,850</strong>).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3.5 bg-[#070b10] rounded-2xl border border-amber-500/30 space-y-1.5">
-                  <strong className="text-amber-300 text-xs">Гидрохлоридная очистка кокаина «Fishscale»:</strong>
-                  <p className="text-[11px] text-slate-300">
-                    1. Выдержите пасту в мацерационной чаше ➔ 2. Добавьте HCl и откачайте вакуумным насосом (-25 PSI) ➔ 3. Заберите 50г перламутровых монокристаллов чистотой 96%+ ($85/г).
+                  <p className="text-slate-300">
+                    Сверяйте 4 фактора: 1. Срок действия даты (15 или 60 дней) ➔ 2. Подлинность треугольной печати врача ➔ 3. Совпадение подписи главврача ➔ 4. Дозировка (отсутствие превышения).
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 6. SIDE JOBS & COURIER MANUAL */}
+          {/* ================= 6. SIDE JOBS ================= */}
           {activeSection === 'side_jobs' && (
-            <div className="space-y-5">
+            <div className="space-y-5 font-mono">
               <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-bold text-amber-400 flex items-center gap-2 font-mono">
+                <h2 className="text-base font-bold text-amber-400 flex items-center gap-2">
                   <Zap className="w-5 h-5" />
-                  <span>6. Подработки: Разнос закладок и Работа курьером</span>
+                  <span>6. Подработки: Доставка, раскладка закладок и уход от полиции</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  Правила скрытной доставки, риски, штрафы и побег от патрулей.
+                  Тактика выбора районов, раскладки тайников и минимизации рисков.
                 </p>
               </div>
 
-              <div className="space-y-3 font-mono text-slate-300 text-[11px]">
+              <div className="space-y-3 text-[11px] text-slate-300">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div className="p-3 bg-[#070b10] rounded-xl border border-emerald-500/30 space-y-1">
-                    <strong className="text-emerald-400">Спальный район «Южный»</strong>
-                    <p className="text-slate-400">Выплата: <strong>$15 – $25</strong>. Низкий риск патрулей (25%).</p>
+                    <strong className="text-emerald-400">1. Спальный район «Южный»</strong>
+                    <p className="text-slate-400">Выплата: $15 – $25. Риск: 25%. Идеально для старта.</p>
                   </div>
                   <div className="p-3 bg-[#070b10] rounded-xl border border-amber-500/30 space-y-1">
-                    <strong className="text-amber-400">Промзона и склады</strong>
-                    <p className="text-slate-400">Выплата: <strong>$25 – $38</strong>. Патрульные дроны (50% риск).</p>
+                    <strong className="text-amber-400">2. Промзона и склады</strong>
+                    <p className="text-slate-400">Выплата: $25 – $38. Риск: 50%. Патрульные дроны.</p>
                   </div>
                   <div className="p-3 bg-[#070b10] rounded-xl border border-rose-500/30 space-y-1">
-                    <strong className="text-rose-400">ЖК «Золотые Башни»</strong>
-                    <p className="text-slate-400">Выплата: <strong>$40 – $50</strong>. Экстремальный риск (80%).</p>
+                    <strong className="text-rose-400">3. ЖК «Золотые Башни»</strong>
+                    <p className="text-slate-400">Выплата: $40 – $50. Риск: 80%. Элитные клиенты.</p>
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-[#060a12] rounded-2xl border border-rose-500/30 space-y-2">
-                  <strong className="text-rose-400 text-xs uppercase tracking-wide">
-                    ⚠️ Штрафы за невыполненную закладку и облаву:
-                  </strong>
-                  <ul className="list-disc list-inside space-y-1 text-slate-300">
-                    <li>Если вы сбросите товар при погоне или отмените доставку — списывается штраф <strong>$25</strong> за сорванную закладку.</li>
-                    <li>При аресте полицией из баланса удерживается штраф <strong>$50</strong>, а уровень розыска возрастает на <strong>+25%</strong>.</li>
-                    <li>Можно дать взятку патрульным за <strong>$40</strong>, чтобы уйти без протокола.</li>
-                  </ul>
+                <div className="p-3.5 bg-rose-950/20 border border-rose-500/30 rounded-2xl space-y-1">
+                  <strong className="text-rose-400 text-xs">Правила безопасности курьера:</strong>
+                  <p>• При приближении патруля можно дать взятку <strong>$40</strong> и уйти без протокола.</p>
+                  <p>• Сброс товара при погоне или отмена заказа влечет штраф <strong>$25</strong>.</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 4. POWDER REFINERY GUIDE */}
-          {activeSection === 'powder' && (
-            <div className="space-y-5">
-              <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-bold text-amber-400 flex items-center gap-2 font-mono">
-                  <Boxes className="w-5 h-5" />
-                  <span>5. Порошковый цех: Производство порошка «Аврора»</span>
-                </h2>
-                <p className="text-slate-400 text-xs mt-1">
-                  Рецептура, синхронизация роторного помола, прессование и брикетирование.
-                </p>
-              </div>
-
-              <div className="space-y-3 font-mono text-slate-300 text-[11px]">
-                <div className="p-3 bg-[#070b10] rounded-xl border border-amber-500/30 space-y-1">
-                  <strong className="text-amber-300 text-xs">4 Необходимых реагента:</strong>
-                  <p>1. Белый реагент (10г) + 2. Тёмное сырьё (10г) + 3. Фильтр-порошок (10г) + 4. Стабилизатор (10г).</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="p-3 bg-[#070b10] rounded-xl border border-white/10">
-                    <strong className="text-cyan-400">Роторный помол:</strong>
-                    <p className="mt-1">Держите ползунок в диапазоне <strong>2600 – 3100 RPM</strong>. Ошибки снижают качество.</p>
-                  </div>
-                  <div className="p-3 bg-[#070b10] rounded-xl border border-white/10">
-                    <strong className="text-amber-400">Давление пресса:</strong>
-                    <p className="mt-1">Удерживайте в коридоре <strong>68 – 78 Bar</strong> для монолитной структуры.</p>
-                  </div>
-                </div>
-
-                <p>
-                  После тройной очистки расфасуйте партию в <strong>1г Зиплоки ($75)</strong>, <strong>10г Брикеты ($700)</strong> или <strong>50г Вакуум-блоки ($3,400)</strong>.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* 6. EFFECTS, ADDICTION & PHARMACOLOGY */}
+          {/* ================= 7. EFFECTS & SHADERS ================= */}
           {activeSection === 'effects' && (
             <div className="space-y-5 font-mono">
               <div className="border-b border-white/10 pb-3">
                 <h2 className="text-base font-bold text-pink-400 flex items-center gap-2">
                   <Sparkles className="w-5 h-5" />
-                  <span>7. Эффекты веществ, Зависимость & Толерантность</span>
+                  <span>7. Дегустация 18 Веществ, 4 Дозировки, Шейдеры & Детокс</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  Каждый продукт обладает уникальным физиологическим эффектом, визуальным шейдером и влиянием на организм.
+                  Каждый препарат обладает уникальным полноэкранным шейдером, переключением дозировки на лету и влиянием на организм.
                 </p>
               </div>
 
-              {/* Addiction Mechanism Box */}
-              <div className="p-4 bg-rose-950/25 border border-rose-500/40 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2 text-rose-300 font-bold text-xs">
-                  <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>МЕХАНИКА ЗАВИСИМОСТИ И ТОЛЕРАНТНОСТИ (ADDICTION SYSTEM)</span>
-                </div>
-
-                <div className="text-[11px] text-slate-300 space-y-2 leading-relaxed">
-                  <p>
-                    <strong>Как появляется зависимость в игре:</strong><br />
-                    Зависимость и толерантность возникают при <strong>регулярном дегустировании веществ</strong> (особенно стимуляторов типа Кокаина Fishscale) или при частых приемах в дозировках <strong>«Высокая»</strong> и <strong>«Овердрайв»</strong> (2 и более раза за один игровой день или несколько дней подряд).
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    <div className="p-2.5 bg-black/50 rounded-xl border border-rose-500/30">
-                      <strong className="text-amber-300 text-[11px]">1. Нарастание Толерантности:</strong>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        При частых приемах организм привыкает. Позитивный бафф длится на <strong>30–50% меньше</strong>, а для активации шейдеров требуется большая доза.
-                      </p>
+              <div className="space-y-3 text-[11px] text-slate-300">
+                <div className="p-3.5 bg-purple-950/25 border border-purple-500/40 rounded-2xl space-y-2">
+                  <strong className="text-purple-300 text-xs uppercase tracking-wide">
+                    4 Уровня Дозировки (Переключение на лету в правом верхнем углу):
+                  </strong>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+                    <div className="p-2 bg-black/40 rounded-lg border border-white/10">
+                      <strong className="text-emerald-400 block">1. Микро:</strong>
+                      Мягкий фокус, 0% зависимости.
                     </div>
-
-                    <div className="p-2.5 bg-black/50 rounded-xl border border-rose-500/30">
-                      <strong className="text-rose-400 text-[11px]">2. Синдром отмены (Ломка):</strong>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        Если не принимать вещества при высоком уровне зависимости, скорость работы лаборатории и перемещения курьера падает на <strong>15–20%</strong>.
-                      </p>
+                    <div className="p-2 bg-black/40 rounded-lg border border-white/10">
+                      <strong className="text-cyan-400 block">2. Стандарт:</strong>
+                      Сбалансированные шейдеры и эффекты.
+                    </div>
+                    <div className="p-2 bg-black/40 rounded-lg border border-white/10">
+                      <strong className="text-amber-400 block">3. Высокая:</strong>
+                      Усиленные волны, +18% риска.
+                    </div>
+                    <div className="p-2 bg-black/40 rounded-lg border border-white/10">
+                      <strong className="text-rose-400 block">4. Овердрайв:</strong>
+                      Максимальный раш / вертиго.
                     </div>
                   </div>
-
-                  <div className="p-2.5 bg-emerald-950/30 border border-emerald-500/30 rounded-xl">
-                    <strong className="text-emerald-300 text-[11px]">Как снять или предотвратить зависимость:</strong>
-                    <ul className="list-disc list-inside text-[10px] text-slate-300 mt-1 space-y-0.5">
-                      <li><strong>Детокс-пауза:</strong> Пропустите 2–3 игровых дня без приёма веществ (уровень зависимости спадёт до 0).</li>
-                      <li><strong>Микродозирование:</strong> Используйте дозировку «Микродоза» (0.1g / 20mg) — она дает фокус без риска зависимости.</li>
-                      <li><strong>Медицинская очистка:</strong> Намите штатного юриста или врача в разделе «Инфраструктура».</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {/* Substances Shader Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono">
-                <div className="p-3 bg-[#070b10] rounded-xl border border-amber-500/30 space-y-1">
-                  <strong className="text-amber-300 text-xs">Cocaine Fishscale (Hyper-Dopamine)</strong>
-                  <p className="text-[11px] text-slate-400">
-                    Золотые электрические дуги по краям экрана, туннельное зрение, пульс 150 BPM и мгновенное ускорение крафта. <em>Высокий риск быстрого развития зависимости!</em>
-                  </p>
                 </div>
 
-                <div className="p-3 bg-[#070b10] rounded-xl border border-cyan-500/30 space-y-1">
-                  <strong className="text-cyan-300 text-xs">White Widow (Time-Dilation)</strong>
-                  <p className="text-[11px] text-slate-400">
-                    Замедляет игровое время на <strong>30%</strong>, позволяя идеально контролировать тонкие химические реакции. Эфирная белая морозная виньетка.
-                  </p>
-                </div>
-
-                <div className="p-3 bg-[#070b10] rounded-xl border border-amber-500/30 space-y-1">
-                  <strong className="text-amber-300 text-xs">Amnesia Haze (Hyper-Speed)</strong>
-                  <p className="text-[11px] text-slate-400">
-                    Ускоряет обработку операций и симуляцию на <strong>1.4x</strong>. Неоновые вспышки и динамический blur движения.
-                  </p>
-                </div>
-
-                <div className="p-3 bg-[#070b10] rounded-xl border border-purple-500/30 space-y-1">
-                  <strong className="text-purple-300 text-xs">Gorilla Glue #4 & Грибы / ЛСД</strong>
-                  <p className="text-[11px] text-slate-400">
-                    Гашение дрожания UI, калейдоскопические RGB аберрации, биолюминесцентные контуры и обострение фокуса.
-                  </p>
+                <div className="p-3.5 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl space-y-1">
+                  <strong className="text-emerald-300 text-xs">Очистка от зависимости (Детокс):</strong>
+                  <p>Пропустите 2–3 игровых дня без употребления веществ или активируйте детокс-программу через адвоката.</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 7. ECONOMY & HEAT */}
+          {/* ================= 8. ECONOMY & HEAT ================= */}
           {activeSection === 'economy' && (
-            <div className="space-y-5">
+            <div className="space-y-5 font-mono">
               <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-bold text-emerald-400 flex items-center gap-2 font-mono">
+                <h2 className="text-base font-bold text-emerald-400 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
-                  <span>7. Теневая экономика, Розыск полиции и Баланс суточных расходов</span>
+                  <span>8. Теневая экономика, Darknet (XMR/BTC), Отмыв & Розыск полиции (Heat)</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  Сбыт, криптовалютные шлюзы, снижение рисков и финансовые отчеты.
+                  Управление денежными потоками, криптовалютные шлюзы и снижение подозрительности властей.
                 </p>
               </div>
 
-              <div className="space-y-3 font-mono text-[11px] text-slate-300">
+              <div className="space-y-3 text-[11px] text-slate-300">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div className="p-3 bg-[#070b10] rounded-xl border border-white/10 space-y-1">
                     <strong className="text-white text-xs">1. Уличный сбыт</strong>
-                    <p className="text-slate-400">Мгновенный кэш, но создает +2-5% розыска полиции за каждую партию.</p>
+                    <p className="text-slate-400">Быстрые деньги, но повышает розыск на +2-5% за партию.</p>
                   </div>
                   <div className="p-3 bg-[#070b10] rounded-xl border border-amber-500/30 space-y-1">
                     <strong className="text-amber-300 text-xs">2. Darknet (XMR/BTC)</strong>
-                    <p className="text-slate-400">Безопасные крипто-сделки. Требуют конвертации в фиат через отмывочный шлюз (-8% комиссия).</p>
+                    <p className="text-slate-400">Анонимные крипто-сделки. Отмыв через шлюз берет комиссию 8%.</p>
                   </div>
                   <div className="p-3 bg-[#070b10] rounded-xl border border-purple-500/30 space-y-1">
                     <strong className="text-purple-300 text-xs">3. Картельные контракты</strong>
-                    <p className="text-slate-400">Крупные оптовые чеки ($10,000+), жесткие дедлайны и штрафы за срыв.</p>
+                    <p className="text-slate-400">Крупные оптовые чеки ($10,000+), строгие дедлайны.</p>
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-[#060a12] rounded-2xl border border-rose-500/30 space-y-2">
-                  <strong className="text-rose-400 text-xs flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4" /> Факторы розыска полиции (Police Heat):
-                  </strong>
-                  <ul className="list-disc list-inside space-y-1 text-slate-300">
-                    <li><strong>Запах растений:</strong> Устанавливайте угольные фильтры (каждый нейтрализует 25 единиц запаха).</li>
-                    <li><strong>Аномалии электросети:</strong> Нагрузка свыше 1800W привлекает внимание. Покупайте <strong>Солнечные панели 400W</strong> для снижения сетевого следа.</li>
-                    <li><strong>Адвокатский ретейнер:</strong> За $200/сутки снижает генерацию розыска на <strong>50%</strong>.</li>
-                  </ul>
+                <div className="p-3.5 bg-rose-950/20 border border-rose-500/30 rounded-2xl space-y-1">
+                  <strong className="text-rose-400 text-xs">Снижение розыска полиции (Police Heat):</strong>
+                  <p>• <strong>Угольные фильтры:</strong> устраняют запах растений (каждый фильтр снимает 25 единиц запаха).</p>
+                  <p>• <strong>Солнечные панели 400W:</strong> снижают нагрузку на электросеть ниже порога 1800W.</p>
+                  <p>• <strong>Адвокатский ретейнер:</strong> за $200/сутки режет генерацию розыска на 50%.</p>
                 </div>
-
-                <div className="p-3 bg-[#070b10] rounded-xl border border-white/10 space-y-1">
-                  <strong className="text-emerald-400 text-xs">Суточный цикл и отчетность:</strong>
-                  <p className="text-slate-400">
-                    Каждые сутки останавливаются на 24:00. При нажатии «Завершить день» открывается финансовое окно с полным расчетом прибыли, аренды, зарплат персонала и чистой прибыли.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'pharma' && (
-            <div className="space-y-4">
-              <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-bold text-cyan-400 flex items-center gap-2 font-mono">
-                  <FlaskConical className="w-5 h-5 text-cyan-400" />
-                  <span>8. Руководство по Аптеке, 22 Препаратам и Рецептурным Бланкам</span>
-                </h2>
-                <p className="text-slate-400 text-xs mt-1">
-                  Полная рецептура 22 препаратов, мини-игры крафта, экспертиза бланков 107-1/у, 148-1/у-88, 107/у-НП и правила подделки.
-                </p>
-              </div>
-
-              {/* 22 DRUGS TABLE */}
-              <div className="p-4 bg-[#080d14] border border-cyan-500/30 rounded-2xl space-y-3 font-mono text-[11px]">
-                <h3 className="font-bold text-sm text-cyan-200">🧪 Рецептурный Каталог (22 Препарата)</h3>
-                <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto pr-1">
-                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
-                    <div className="font-bold text-emerald-400">1-5. Безрецептурная группа (Полки A):</div>
-                    <p className="text-slate-300">
-                      • <strong>Парацетамол:</strong> «Альба» + Крахмальное связующее + Бумажный блистер [Ползунок]<br />
-                      • <strong>Ибупрофен:</strong> «Альба-Про» + Цитрусовый буфер + Фольга [Ползунок]<br />
-                      • <strong>Мелатонин:</strong> Экстракт «Лунный цвет» + Растительный сорбент + Тёмная банка [Ползунок (медленный)]<br />
-                      • <strong>Аспирин:</strong> Ивовый экстракт + Кислотный буфер + Бумажный блистер [Ползунок]<br />
-                      • <strong>Активированный уголь:</strong> Обожжённая древесина + Пористый активатор + Картонный стрип [Ползунок]<br />
-                      • <strong>Лоратадин:</strong> «Альба-Анти» + Антигистаминный модуль + Фольга [Ползунок]<br />
-                      • <strong>Но-шпа:</strong> «Спазмо-лит» + Мягкий растворитель + Пластиковый блистер [Ползунок]<br />
-                      • <strong>Витамин C:</strong> Цитрусовый концентрат + Шипучий активатор + Тубус [Ползунок]
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
-                    <div className="font-bold text-blue-400">6-10. Рецептурная группа (Сейфы B / Бланк 107-1/у):</div>
-                    <p className="text-slate-300">
-                      • <strong>Габапентин:</strong> Нейро-экстракт «Седа» + Щелочной буфер + Серая фольга [Ползунок (медленный)]<br />
-                      • <strong>Лирика:</strong> Нейро-экстракт «Седа-Про» + «Тихий лист» + Капсульная упаковка [Ползунок + таймер]<br />
-                      • <strong>Золофт:</strong> Основа «Серо» + «Солнечный цитрус» + Оболочка + блистер [Долгая варка]<br />
-                      • <strong>Прозак:</strong> Основа «Серо-Лайт» + Фокус-модуль + Капсула [Долгая варка]<br />
-                      • <strong>Трамадол:</strong> «Анальга» + Медленный высвободитель + Термоупаковка [Баланс «сила/риск»]
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
-                    <div className="font-bold text-amber-400">11-15. Особый Учёт (Сейфы C / Бланк 148-1/у-88):</div>
-                    <p className="text-slate-300">
-                      • <strong>Золпидем:</strong> «Сомна» + Быстрый растворитель + Герметичный блистер [Ползунок (точный)]<br />
-                      • <strong>Ксанакс:</strong> «Транкви» + Стабилизатор «Тишина» + Защищённый блистер [Ползунок (точный)]<br />
-                      • <strong>Модафинил:</strong> «Вигил» + Тоник «Ясность» + Блистер [Ритм]<br />
-                      • <strong>Риталин:</strong> «Фокус-Стим» + Нейро-активатор + Блистер [Ритм]<br />
-                      • <strong>Кодеин:</strong> «Тёмная смола-Лайт» + Смягчитель + Блистер [Баланс «сила/риск»]
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
-                    <div className="font-bold text-rose-400">16-17. Элитные Препараты (Подсобка D / Спецбланк 107/у-НП):</div>
-                    <p className="text-slate-300">
-                      • <strong>Аддерол:</strong> «Стим-Микс» + Пролонгатор XR + Капсула с гранулами [Ритм + перегрев]<br />
-                      • <strong>Оксикодон:</strong> «Тёмная смола-Про» + Контроль высвобождения + Защита от вскрытия [Баланс «сила/риск»]<br />
-                      • <strong>Морфин:</strong> «Тёмная смола-Элит» + Стерильный раствор + Стеклянные ампулы [Стерильность]<br />
-                      • <strong>Фентанил:</strong> «Синт-Нейро» + Матрица трансдермы + Ламинированный пластырь [Минимальный допуск]
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* PRESCRIPTION BLANKS RULES */}
-              <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-2xl space-y-2 font-mono text-[11px]">
-                <strong className="text-amber-300 text-xs flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-amber-400" /> Правила Рецептурных Бланков и Проверки:
-                </strong>
-                <ul className="list-disc list-inside space-y-1 text-amber-200/90">
-                  <li><strong>Форма 107-1/у (Rx):</strong> Срок 60 дней. Для Габапентина, Лирики, Золофта, Трамадола, Прозака.</li>
-                  <li><strong>Форма 148-1/у-88 (Особый учёт):</strong> Срок 15 дней. Для Золпидема, Ксанакса, Модафинила, Риталина, Кодеина.</li>
-                  <li><strong>Спецбланк 107/у-НП (Элитный):</strong> Розовая защитная сетка. Срок 15 дней, без повторов. Для Аддерола, Оксикодона, Морфина, Фентанила.</li>
-                  <li><strong>Экспертиза бланка:</strong> При проверке ищите 2-3 ошибки (просроченная дата, поддельная печать, не та подпись, превышение дозы).</li>
-                  <li><strong>Подделка:</strong> Требуются «Чистый бланк» + «Печать врача» + мини-игра подписи.</li>
-                </ul>
               </div>
             </div>
           )}

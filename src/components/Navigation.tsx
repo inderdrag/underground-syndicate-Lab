@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GamePhase, GameState } from '../types/game';
 import {
   Volume2,
@@ -21,7 +21,13 @@ import {
   Menu,
   Languages,
   Sparkles,
-  Package
+  Package,
+  Settings,
+  ChevronDown,
+  Check,
+  Flame,
+  Clock,
+  Layers
 } from 'lucide-react';
 import { MiniGameType } from './MiniGameManager';
 import { sounds } from '../engine/soundEffects';
@@ -65,22 +71,39 @@ export const Navigation: React.FC<NavigationProps> = ({
   onChangeFont,
 }) => {
   const t = translations[language];
-  const [showFontMenu, setShowFontMenu] = useState(false);
+  const [showSystemMenu, setShowSystemMenu] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showWorkshopsSheet, setShowWorkshopsSheet] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
 
-  const fontOptions: { id: FontTheme; name: string; preview: string }[] = [
-    { id: 'inter', name: 'Inter', preview: 'Inter (Чёткий)' },
-    { id: 'golos', name: 'Golos', preview: 'Golos Text' },
-    { id: 'unbounded', name: 'Unbounded', preview: 'Unbounded' },
-    { id: 'system', name: 'System', preview: 'Системный' },
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close system dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowSystemMenu(false);
+      }
+    };
+    if (showSystemMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSystemMenu]);
+
+  const fontOptions: { id: FontTheme; name: string; preview: string; desc: string }[] = [
+    { id: 'inter', name: 'Inter', preview: 'Inter', desc: 'Четкий гротеск' },
+    { id: 'golos', name: 'Golos', preview: 'Golos Text', desc: 'Современный читаемый' },
+    { id: 'unbounded', name: 'Unbounded', preview: 'Unbounded', desc: 'Киберпанк-стиль' },
+    { id: 'system', name: 'System', preview: 'Системный', desc: 'Нативный шрифт ОС' },
   ];
 
   const productionPhases: GamePhase[] = ['botany', 'mycology', 'synthesis', 'powder_refinery', 'pharma_lab'];
   const isProductionActive = productionPhases.includes(currentPhase);
 
-  // All 14 Workshops & Sections for the Mobile Bottom Sheet Selector
+  // 14 Workshops & Sections for Mobile Bottom Sheet
   const all14Workshops = [
     {
       id: 'botany' as GamePhase,
@@ -164,9 +187,15 @@ export const Navigation: React.FC<NavigationProps> = ({
   const mainHubs = [
     {
       id: 'production_hub',
-      label: language === 'ru' ? '🏭 Производство' : '🏭 Labs & Production',
+      label: language === 'ru' ? '🏭 Лаборатории' : '🏭 Labs & Prod',
       isActive: isProductionActive,
       onClick: () => onSelectPhase(isProductionActive ? currentPhase : 'botany'),
+    },
+    {
+      id: 'pharma_facade',
+      label: language === 'ru' ? '🏥 Аптека' : '🏥 Pharmacy',
+      isActive: currentPhase === 'pharma_facade' || (currentPhase as string) === 'pharmacy_group',
+      onClick: () => onSelectPhase('pharma_facade'),
     },
     {
       id: 'megastore',
@@ -176,25 +205,19 @@ export const Navigation: React.FC<NavigationProps> = ({
     },
     {
       id: 'side_jobs',
-      label: language === 'ru' ? '🏃 Подработки (Закладки)' : '🏃 Side Jobs (Courier)',
+      label: language === 'ru' ? '🏃 Подработки' : '🏃 Side Jobs',
       isActive: currentPhase === 'side_jobs',
       onClick: () => onSelectPhase('side_jobs'),
     },
     {
-      id: 'pharma_facade',
-      label: language === 'ru' ? '🏥 Моя Аптека' : '🏥 My Pharmacy',
-      isActive: currentPhase === 'pharma_facade' || (currentPhase as string) === 'pharmacy_group',
-      onClick: () => onSelectPhase('pharma_facade'),
-    },
-    {
       id: 'economy',
-      label: language === 'ru' ? '💰 Сбыт & Рынок' : '💰 Market & Blacknet',
+      label: language === 'ru' ? '💰 Сбыт & Рынок' : '💰 Market',
       isActive: currentPhase === 'economy',
       onClick: () => onSelectPhase('economy'),
     },
     {
       id: 'upkeep',
-      label: language === 'ru' ? '⚙️ Инфраструктура' : '⚙️ Operations & Base',
+      label: language === 'ru' ? '⚙️ База' : '⚙️ Operations',
       isActive: currentPhase === 'upkeep',
       onClick: () => onSelectPhase('upkeep'),
     },
@@ -215,11 +238,11 @@ export const Navigation: React.FC<NavigationProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-[#090c10]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-lg shadow-black/40 pt-safe">
-      {/* Top App Bar */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
-        {/* Zone 1: Mobile Back Button / Brand Title */}
-        <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-30 bg-[#090c12]/95 backdrop-blur-2xl border-b border-white/[0.08] shadow-2xl shadow-black/60 pt-safe">
+      {/* ================= MOBILE TOP APP BAR (Compact & Clean) ================= */}
+      <div className="md:hidden flex items-center justify-between px-3 h-12 gap-2 border-b border-white/[0.04]">
+        {/* Left: Brand */}
+        <div className="flex items-center gap-2 shrink-0">
           {isProductionActive && currentPhase !== 'botany' && (
             <button
               onClick={() => {
@@ -227,10 +250,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                 sounds.playClick();
                 onSelectPhase('botany');
               }}
-              className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white cursor-pointer min-h-[44px] min-w-[44px]"
+              className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 text-white cursor-pointer"
               aria-label="Назад"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
           )}
 
@@ -240,15 +263,75 @@ export const Navigation: React.FC<NavigationProps> = ({
               sounds.playClick();
               onSelectPhase('botany');
             }}
-            className="flex items-center gap-2 text-sm sm:text-lg font-bold tracking-tight text-white hover:text-emerald-400 transition-all cursor-pointer group shrink-0"
+            className="flex items-center gap-1.5 text-xs font-bold font-mono tracking-wider text-white hover:text-emerald-400 transition-colors"
           >
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#10b981] group-hover:scale-125 transition-transform" />
-            <span className="truncate max-w-[140px] sm:max-w-none">{t.brandTitle}</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]" />
+            <span>SYNDICATE</span>
           </button>
         </div>
 
-        {/* Zone 2: Desktop Navigation Hubs */}
-        <nav className="hidden md:flex items-center gap-1.5 bg-[#141a24]/90 p-1.5 rounded-xl border border-white/[0.08] text-xs font-mono font-bold text-slate-200">
+        {/* Center: Vitals (Cash, Heat, Clock) */}
+        <div className="flex items-center gap-1.5 font-mono text-xs">
+          <div className="px-2 py-0.5 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 font-extrabold text-[11px] tabular-nums">
+            ${gameState.cash.toLocaleString()}
+          </div>
+
+          <div className={`px-1.5 py-0.5 rounded-lg border font-bold text-[11px] tabular-nums flex items-center gap-0.5 ${
+            gameState.policeHeat > 50
+              ? 'bg-rose-950/70 border-rose-500/50 text-rose-400 animate-pulse'
+              : 'bg-[#141a24] border-white/10 text-slate-300'
+          }`}>
+            <ShieldAlert className="w-3 h-3 text-rose-400" />
+            <span>{Math.round(gameState.policeHeat)}%</span>
+          </div>
+
+          <div className="px-1.5 py-0.5 rounded-lg bg-white/5 border border-white/5 text-[10px] text-slate-300 tabular-nums">
+            Д.{gameState.day} {String(gameState.hour).padStart(2, '0')}:00
+          </div>
+        </div>
+
+        {/* Right: Unified System & Settings Trigger */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => {
+              hapticFeedback.medium();
+              sounds.playClick();
+              setShowSystemMenu(!showSystemMenu);
+            }}
+            className={`p-1.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+              showSystemMenu
+                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/30 font-bold'
+                : 'bg-[#121824] hover:bg-[#1a2333] text-emerald-400 border-white/10'
+            }`}
+            title="Меню настроек, дегустации и языка"
+            aria-label="Настройки и дегустация"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* ================= DESKTOP TOP APP BAR ================= */}
+      <div className="hidden md:flex max-w-7xl mx-auto px-4 lg:px-6 h-14 items-center justify-between gap-3">
+        {/* Zone 1: Brand & Logo */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              onSelectPhase('botany');
+            }}
+            className="flex items-center gap-2.5 text-sm lg:text-base font-black tracking-tight text-white hover:text-emerald-400 transition-all cursor-pointer group"
+          >
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center group-hover:border-emerald-400 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.4)] transition-all">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]" />
+            </div>
+            <span className="font-mono">{t.brandTitle}</span>
+          </button>
+        </div>
+
+        {/* Zone 2: Grouped Navigation Hubs (Clean segmented dock) */}
+        <nav className="flex items-center gap-1 bg-[#101622]/90 p-1 rounded-2xl border border-white/[0.08] shadow-inner text-xs font-mono font-bold text-slate-200">
           {mainHubs.map((item) => (
             <button
               key={item.id}
@@ -257,97 +340,214 @@ export const Navigation: React.FC<NavigationProps> = ({
                 sounds.playClick();
                 item.onClick();
               }}
-              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer min-h-[44px] ${
+              className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 ${
                 item.isActive
-                  ? 'bg-emerald-500/20 text-emerald-300 shadow-sm border border-emerald-500/40 ring-1 ring-emerald-500/20'
+                  ? 'bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 shadow-sm border border-emerald-500/40 font-extrabold'
                   : 'hover:text-white hover:bg-white/[0.06] text-slate-400'
               }`}
             >
-              {item.label}
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
 
-        {/* Zone 3: Actions & Quick Toggles */}
-        <div className="flex items-center gap-1.5">
-          {/* Funds Badge on Mobile */}
-          <div className="md:hidden px-2.5 py-1 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 font-mono font-extrabold text-xs">
-            ${gameState.cash.toLocaleString()}
-          </div>
-
-          {/* Font Selector */}
-          <div className="relative hidden sm:block">
-            <button
-              onClick={() => {
-                hapticFeedback.light();
-                setShowFontMenu(!showFontMenu);
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#141923] hover:bg-[#1c2332] text-slate-200 border border-white/10 rounded-lg transition-all cursor-pointer active:scale-95 min-h-[44px]"
-            >
-              <Type className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-mono capitalize">{activeFont}</span>
-            </button>
-
-            {showFontMenu && (
-              <div className="absolute right-0 mt-2 w-44 bg-[#121822] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1">
-                {fontOptions.map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      hapticFeedback.light();
-                      sounds.playClick();
-                      onChangeFont(opt.id);
-                      setShowFontMenu(false);
-                    }}
-                    className={`px-2.5 py-2 rounded-lg text-xs text-left flex items-center justify-between cursor-pointer ${
-                      activeFont === opt.id
-                        ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
-                        : 'text-slate-200 hover:bg-white/5'
-                    }`}
-                  >
-                    <span>{opt.preview}</span>
-                    {activeFont === opt.id && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Language Switcher RU / EN */}
+        {/* Zone 3: Unified System & Options Menu Dropdown */}
+        <div className="relative shrink-0" ref={menuRef}>
           <button
             onClick={() => {
               hapticFeedback.light();
               sounds.playClick();
-              onToggleLanguage();
+              setShowSystemMenu(!showSystemMenu);
             }}
-            className="flex items-center gap-1 px-2 py-1.5 text-xs font-mono font-bold bg-[#141923] hover:bg-[#1c2332] text-slate-200 border border-white/10 rounded-lg transition-all cursor-pointer active:scale-95 min-h-[44px]"
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono font-bold rounded-xl border transition-all cursor-pointer active:scale-95 shadow-md ${
+              showSystemMenu
+                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-emerald-500/20'
+                : 'bg-[#121824] hover:bg-[#1a2333] text-slate-200 border-white/10 hover:border-emerald-500/40'
+            }`}
           >
-            <Languages className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="tracking-wider text-[11px]">{language.toUpperCase()}</span>
+            <Sparkles className={`w-3.5 h-3.5 ${showSystemMenu ? 'text-slate-950' : 'text-emerald-400'}`} />
+            <span>{language === 'ru' ? 'Опции & Дегустация' : 'Options & Sample'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/20 border border-white/10 uppercase">
+              {language} · {activeFont}
+            </span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSystemMenu ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Mute Toggle */}
-          <button
-            onClick={() => {
-              hapticFeedback.light();
-              onToggleMute();
-            }}
-            className="p-2 text-slate-400 hover:text-slate-100 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label={isMuted ? t.unmuteSounds : t.muteSounds}
-          >
-            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-slate-300" />}
-          </button>
+          {/* UNIFIED DROPDOWN POPOVER MENU (Language, Font, Sample FX, Audio, Reset) */}
+          {showSystemMenu && (
+            <div className="absolute right-0 mt-2 w-80 bg-[#0d121c]/98 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] p-4 z-50 text-slate-100 font-sans space-y-4 animate-fadeIn">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-400">
+                  <Settings className="w-4 h-4" />
+                  <span>{language === 'ru' ? 'СИСТЕМА И НАСТРОЙКИ' : 'SYSTEM & SETTINGS'}</span>
+                </div>
+                <button
+                  onClick={() => setShowSystemMenu(false)}
+                  className="w-6 h-6 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* 1. Substance Sampling & Shaders (Дегустация) */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono font-bold text-slate-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{language === 'ru' ? 'Дегустационная лаборатория:' : 'Substance Sampling Room:'}</span>
+                </span>
+                <button
+                  onClick={() => {
+                    hapticFeedback.medium();
+                    sounds.playPsychedelicChime();
+                    setShowSystemMenu(false);
+                    onTriggerSampleModal();
+                  }}
+                  className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 hover:from-emerald-500/30 hover:to-cyan-500/30 border border-emerald-500/40 hover:border-emerald-400 rounded-2xl text-left flex items-center justify-between transition-all cursor-pointer group shadow-lg shadow-emerald-500/10 active:scale-98"
+                >
+                  <div>
+                    <strong className="text-xs font-bold text-emerald-300 block flex items-center gap-1.5">
+                      <span>✨ {language === 'ru' ? 'Открыть Дегустацию Веществ' : 'Open Substance Sampler'}</span>
+                    </strong>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {language === 'ru' ? '16 эффектов, шейдеры и аудио-волны' : '16 effects, GL shaders & visual trip'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-emerald-400 font-bold group-hover:translate-x-1 transition-transform font-mono">
+                    ➔
+                  </span>
+                </button>
+              </div>
+
+              {/* 2. Language Switcher (Язык) */}
+              <div className="space-y-1.5 pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <Languages className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{language === 'ru' ? 'Язык интерфейса:' : 'Interface Language:'}</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-bold font-mono uppercase">{language}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 font-mono text-xs">
+                  <button
+                    onClick={() => {
+                      if (language !== 'ru') {
+                        hapticFeedback.light();
+                        sounds.playClick();
+                        onToggleLanguage();
+                      }
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      language === 'ru'
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 font-bold shadow-sm'
+                        : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-white/5'
+                    }`}
+                  >
+                    <span>🇷🇺 Русский</span>
+                    {language === 'ru' && <Check className="w-3 h-3 text-emerald-400" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (language !== 'en') {
+                        hapticFeedback.light();
+                        sounds.playClick();
+                        onToggleLanguage();
+                      }
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      language === 'en'
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 font-bold shadow-sm'
+                        : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-white/5'
+                    }`}
+                  >
+                    <span>🇬🇧 English</span>
+                    {language === 'en' && <Check className="w-3 h-3 text-emerald-400" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Font Switcher (Шрифт Inter, Golos, Unbounded, System) */}
+              <div className="space-y-1.5 pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{language === 'ru' ? 'Шрифт темы (Типографика):' : 'Typography Theme:'}</span>
+                  </span>
+                  <span className="text-[10px] text-cyan-400 font-bold font-mono uppercase">{activeFont}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {fontOptions.map((opt) => {
+                    const isSelected = activeFont === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          hapticFeedback.light();
+                          sounds.playClick();
+                          onChangeFont(opt.id);
+                        }}
+                        className={`p-2 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 font-bold shadow-sm'
+                            : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-white/5'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-bold">{opt.preview}</div>
+                          <div className="text-[9px] text-slate-400 font-mono">{opt.desc}</div>
+                        </div>
+                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4. Audio & Sounds and Reset */}
+              <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => {
+                    hapticFeedback.light();
+                    onToggleMute();
+                  }}
+                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    isMuted
+                      ? 'bg-rose-950/40 border-rose-500/40 text-rose-300'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-white/10'
+                  }`}
+                >
+                  {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                  <span>{isMuted ? (language === 'ru' ? 'Звук: Выкл' : 'Sound: Off') : (language === 'ru' ? 'Звук: Вкл' : 'Sound: On')}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    hapticFeedback.heavy();
+                    setShowSystemMenu(false);
+                    setShowResetModal(true);
+                  }}
+                  className="py-2 px-3 rounded-xl bg-rose-950/30 hover:bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Сброс прогресса"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+                  <span>{language === 'ru' ? 'Сброс' : 'Reset'}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Production Sub-Nav Strip (when inside any production workshop) */}
+      {/* ================= PRODUCTION SUB-NAV STRIP ================= */}
       {isProductionActive && (
-        <div className="bg-[#06090e]/90 border-t border-white/[0.05] px-3 sm:px-6 py-1.5 overflow-x-auto scrollbar-none">
-          <div className="max-w-7xl mx-auto flex items-center gap-1.5">
-            <span className="text-emerald-400 font-bold text-[10px] font-mono uppercase tracking-wider shrink-0 mr-1">
-              Цех:
-            </span>
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <div className="bg-[#06090e]/95 border-t border-white/[0.05] px-3 sm:px-6 py-1.5 overflow-x-auto scrollbar-none shadow-inner">
+          <div className="max-w-7xl mx-auto flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1 text-emerald-400 font-bold text-[11px] font-mono uppercase tracking-wider shrink-0 mr-1">
+              <Layers className="w-3 h-3" />
+              <span>Цех:</span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full">
               {productionSubTabs.map((tab) => {
                 const isCurrent = currentPhase === tab.id;
                 return (
@@ -360,8 +560,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 shrink-0 ${
                       isCurrent
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md font-extrabold'
-                        : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20 font-black scale-102'
+                        : 'bg-[#101520] text-slate-300 hover:bg-[#182030] border border-white/5'
                     }`}
                   >
                     <span>{tab.label}</span>
@@ -373,35 +573,37 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
       )}
 
-      {/* Persistent Strategic Stat Strip */}
-      <div className="border-t border-white/[0.06] bg-[#0c1017]/80 backdrop-blur-md px-3 sm:px-6 py-1.5">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-          {/* Funds & Crypto */}
-          <div className="flex items-center gap-3 sm:gap-5 text-slate-200">
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400 font-sans text-xs">{t.cash}</span>
-              <span className="text-emerald-400 font-bold tabular-nums text-xs sm:text-sm">
+      {/* ================= DESKTOP PERSISTENT STRATEGIC STAT STRIP ================= */}
+      <div className="hidden md:block border-t border-white/[0.06] bg-[#0b0f16]/90 backdrop-blur-md px-4 sm:px-6 py-2">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          {/* Card 1: Funds & Crypto */}
+          <div className="flex items-center gap-4 bg-[#0e1420] px-3 py-1.5 rounded-xl border border-white/5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-sans text-xs">{t.cash}:</span>
+              <span className="text-emerald-400 font-black tabular-nums text-sm">
                 ${gameState.cash.toLocaleString()}
               </span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400 text-xs">XMR</span>
-              <span className="text-amber-400 tabular-nums font-semibold text-xs">
+            <div className="w-px h-3.5 bg-white/10" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-xs">XMR:</span>
+              <span className="text-amber-400 tabular-nums font-bold text-xs">
                 {gameState.cryptoXmr.toFixed(2)}
               </span>
             </div>
           </div>
 
-          {/* Risk & Police Heat */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <ShieldAlert className={`w-3.5 h-3.5 ${gameState.policeHeat > 50 ? 'text-rose-400 animate-pulse' : 'text-slate-300'}`} />
+          {/* Card 2: Risk & Police Heat */}
+          <div className="flex items-center gap-3 bg-[#0e1420] px-3 py-1.5 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className={`w-3.5 h-3.5 ${gameState.policeHeat > 50 ? 'text-rose-400 animate-pulse' : 'text-slate-400'}`} />
+              <span className="text-slate-400 text-xs">Розыск:</span>
               <span className={`tabular-nums font-bold text-xs ${
                 gameState.policeHeat > 60 ? 'text-rose-400' : gameState.policeHeat > 30 ? 'text-amber-400' : 'text-emerald-400'
               }`}>
                 {Math.round(gameState.policeHeat)}%
               </span>
-              <div className="w-12 sm:w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/10">
+              <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/10">
                 <div
                   className={`h-full transition-all duration-500 ${
                     gameState.policeHeat > 60 ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : gameState.policeHeat > 30 ? 'bg-amber-400' : 'bg-emerald-500'
@@ -410,36 +612,71 @@ export const Navigation: React.FC<NavigationProps> = ({
                 />
               </div>
             </div>
+          </div>
 
-            {/* Simulation Day & Speed */}
-            <div className="flex items-center gap-2 text-slate-300">
-              <span className="text-slate-200 font-semibold text-xs">{t.day} {gameState.day}</span>
-              <span className="text-emerald-400 tabular-nums font-bold text-xs">
+          {/* Card 3: Simulation Day, Time & Speed */}
+          <div className="flex items-center gap-3 bg-[#0e1420] px-3 py-1.5 rounded-xl border border-white/5 text-slate-300">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-200 font-bold">{t.day} {gameState.day}</span>
+              <span className="text-emerald-400 tabular-nums font-bold flex items-center gap-1 ml-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 {String(gameState.hour).padStart(2, '0')}:00
               </span>
-
-              {/* End Day Button */}
-              {onTriggerDayEnd && (
-                <button
-                  onClick={() => {
-                    hapticFeedback.medium();
-                    sounds.playClick();
-                    onTriggerDayEnd();
-                  }}
-                  className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold cursor-pointer active:scale-95 shrink-0"
-                >
-                  День ➔
-                </button>
-              )}
             </div>
+
+            {/* Speed Multipliers */}
+            {onChangeSpeed && (
+              <div className="flex items-center bg-black/60 border border-white/10 rounded-lg p-0.5 gap-0.5">
+                {[1, 2, 3].map((sp) => {
+                  const active = (gameState.timeSpeedMultiplier || 1) === sp;
+                  return (
+                    <button
+                      key={sp}
+                      onClick={() => {
+                        hapticFeedback.light();
+                        sounds.playClick();
+                        onChangeSpeed(sp);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        active
+                          ? sp === 3
+                            ? 'bg-amber-400 text-slate-950 shadow-[0_0_10px_rgba(251,191,36,0.8)] scale-105 font-black'
+                            : sp === 2
+                            ? 'bg-cyan-400 text-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.8)] scale-105 font-black'
+                            : 'bg-emerald-400 text-slate-950 shadow-[0_0_10px_rgba(52,211,153,0.8)] scale-105 font-black'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                      title={`Скорость симуляции x${sp}`}
+                    >
+                      x{sp}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* End Day Button */}
+            {onTriggerDayEnd && (
+              <button
+                onClick={() => {
+                  hapticFeedback.medium();
+                  sounds.playClick();
+                  onTriggerDayEnd();
+                }}
+                className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold cursor-pointer active:scale-95 shrink-0"
+              >
+                День ➔
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* MOBILE FIXED BOTTOM NAVIGATION BAR (THUMB ZONE 5-BUTTON BAR WITH SAFE AREA) */}
+      {/* ================= MOBILE BOTTOM NAVIGATION BAR ================= */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#080b12]/95 backdrop-blur-2xl border-t border-white/15 shadow-[0_-10px_35px_rgba(0,0,0,0.9)] pb-safe">
         <div className="grid grid-cols-5 gap-1 px-1 py-1.5">
-          {/* 1. Лабы (Opens Workshops Bottom Sheet) */}
+          {/* 1. Лабы */}
           <button
             onClick={() => {
               hapticFeedback.light();
@@ -490,7 +727,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Сбыт</span>
           </button>
 
-          {/* 4. Инвентарь (Мегамаркет & Склад) */}
+          {/* 4. Мегамаркет */}
           <button
             onClick={() => {
               hapticFeedback.light();
@@ -504,10 +741,10 @@ export const Navigation: React.FC<NavigationProps> = ({
             }`}
           >
             <Package className={`w-5 h-5 ${currentPhase === 'megastore' ? 'text-emerald-400' : 'text-slate-400'}`} />
-            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Инвентарь</span>
+            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Склад</span>
           </button>
 
-          {/* 5. Еще... (Opens Mobile Bottom Sheet with secondary functions) */}
+          {/* 5. Меню Еще... */}
           <button
             onClick={() => {
               hapticFeedback.light();
@@ -601,7 +838,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <Shield className="w-5 h-5 text-amber-400" />
               <div>
                 <strong className="text-xs font-bold text-white block">Инфраструктура</strong>
-                <span className="text-[10px] text-slate-400 font-mono">Солнечные панели & фильтры</span>
+                <span className="text-[10px] text-slate-400 font-mono">Панели & фильтры</span>
               </div>
             </button>
 
@@ -634,7 +871,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <Zap className="w-5 h-5 text-amber-400" />
                 <div>
                   <strong className="text-xs font-bold text-amber-300 block">Мини-Игры</strong>
-                  <span className="text-[10px] text-slate-400 font-mono">Челленджи Синдиката</span>
+                  <span className="text-[10px] text-slate-400 font-mono">Челленджи</span>
                 </div>
               </button>
             )}
@@ -669,7 +906,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
       </MobileBottomSheet>
 
-      {/* Reset Game Confirmation Modal */}
+      {/* ================= RESET GAME CONFIRMATION MODAL ================= */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <div className="bg-[#0e121a] border border-rose-500/40 rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl relative">

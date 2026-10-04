@@ -177,9 +177,9 @@ export const SynthesisPhase: React.FC<SynthesisPhaseProps> = ({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Left Column: Batch Selection List */}
-            <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+            {/* Batch Selection Strip (Horizontal row on mobile, vertical list on desktop) */}
+            <div className="flex lg:flex-col overflow-x-auto lg:overflow-y-auto gap-2 pb-1.5 lg:pb-0 scrollbar-none lg:max-h-[580px] shrink-0">
               {gameState.lsdBatches.map((batch) => {
                 const isSelected = batch.id === (activeBatch ? activeBatch.id : null);
                 const isReady = batch.stage === 'completed';
@@ -191,28 +191,28 @@ export const SynthesisPhase: React.FC<SynthesisPhaseProps> = ({
                       sounds.playClick();
                       setSelectedBatchId(batch.id);
                     }}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                    className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer shrink-0 min-w-[210px] sm:min-w-[240px] lg:min-w-0 ${
                       isSelected
                         ? 'bg-[#121926] border-purple-500 shadow-md ring-1 ring-purple-500/30'
                         : 'bg-[#0f141d] border-white/[0.08] hover:border-white/20'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-1">
                       <div>
-                        <div className="font-bold text-white text-sm">
+                        <div className="font-bold text-white text-xs sm:text-sm">
                           Синтез #{batch.id.slice(-4)}
                         </div>
-                        <div className="text-[11px] text-purple-400 font-mono mt-0.5">
-                          {batch.stageIndex === 0 && 'Этап 1 из 5: Сборка'}
-                          {batch.stageIndex === 1 && 'Этап 2 из 5: Термостат'}
-                          {batch.stageIndex === 2 && 'Этап 3 из 5: Мешалка'}
-                          {batch.stageIndex === 3 && 'Этап 4 из 5: Хроматография'}
-                          {batch.stageIndex === 4 && 'Этап 5 из 5: Блоттер'}
+                        <div className="text-[10px] text-purple-400 font-mono mt-0.5">
+                          {batch.stageIndex === 0 && 'Этап 1/5: Сборка'}
+                          {batch.stageIndex === 1 && 'Этап 2/5: Термостат'}
+                          {batch.stageIndex === 2 && 'Этап 3/5: Мешалка'}
+                          {batch.stageIndex === 3 && 'Этап 4/5: Колонка'}
+                          {batch.stageIndex === 4 && 'Этап 5/5: Блоттер'}
                           {(!batch.stageIndex || batch.stageIndex >= 5 || batch.stage === 'completed') && 'Завершено'}
                         </div>
                       </div>
                       <span
-                        className={`text-xs px-2.5 py-0.5 rounded-lg font-mono font-bold ${
+                        className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-lg font-mono font-bold shrink-0 ${
                           isReady || batch.pipelinePhase === 'completed'
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse'
                             : 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
@@ -222,10 +222,10 @@ export const SynthesisPhase: React.FC<SynthesisPhaseProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mt-2">
-                      <span>Темп: <strong className="text-white">{batch.refluxTempC}°C</strong></span>
-                      <span>Чистота: <strong className="text-pink-400">{batch.purity}%</strong></span>
-                      <span>Доза: <strong className="text-amber-400">{batch.blotterDoseUg}ug</strong></span>
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mt-1.5">
+                      <span>T: <strong className="text-white">{batch.refluxTempC}°C</strong></span>
+                      <span>Q: <strong className="text-pink-400">{batch.purity}%</strong></span>
+                      <span>Dose: <strong className="text-amber-400">{batch.blotterDoseUg}ug</strong></span>
                     </div>
                   </div>
                 );

@@ -54,6 +54,7 @@ export default function App() {
   const [dayEndReport, setDayEndReport] = useState<DaySummaryReport | null>(null);
   const [dailyIncomeEarned, setDailyIncomeEarned] = useState<number>(0);
   const [overdoseAlert, setOverdoseAlert] = useState<{ substanceName: string; fee: number } | null>(null);
+  const [dismissedBedtimeDay, setDismissedBedtimeDay] = useState<number | null>(null);
 
   // MiniGame Manager State
   const [isMiniGameOpen, setIsMiniGameOpen] = useState<boolean>(false);
@@ -114,12 +115,41 @@ export default function App() {
   // Trigger consumption effect with dosage tiers, inventory deduction, and overdose risk
   const handleIngestSample = useCallback((effectType: DrugEffectType, dosage: DosageTier = 'standard') => {
     setGameState((prev) => {
-      let invKey: keyof typeof prev.inventory;
+      let invKey: keyof typeof prev.inventory = 'mushroomsGrams';
       let requiredAmount = 0.5;
 
-      if (effectType === 'cocaine') {
+      if (effectType === 'astral_mushrooms') {
+        const driedReq = dosage === 'micro' ? 0.25 : dosage === 'standard' ? 1.5 : dosage === 'high' ? 3.5 : 6.0;
+        const rawReq = dosage === 'micro' ? 2.5 : dosage === 'standard' ? 15.0 : dosage === 'high' ? 35.0 : 60.0;
+        const driedStock = prev.inventory.astralMushroomsDriedGrams || 0;
+        const rawStock = prev.inventory.astralMushroomsRawGrams || 0;
+        const psiloStock = prev.inventory.mushroomsGrams || 0;
+
+        if (driedStock >= driedReq) {
+          invKey = 'astralMushroomsDriedGrams';
+          requiredAmount = driedReq;
+        } else if (rawStock >= rawReq) {
+          invKey = 'astralMushroomsRawGrams';
+          requiredAmount = rawReq;
+        } else if (driedStock > 0) {
+          invKey = 'astralMushroomsDriedGrams';
+          requiredAmount = driedStock;
+        } else if (rawStock > 0) {
+          invKey = 'astralMushroomsRawGrams';
+          requiredAmount = rawStock;
+        } else if (psiloStock >= driedReq) {
+          invKey = 'mushroomsGrams';
+          requiredAmount = driedReq;
+        } else {
+          invKey = 'astralMushroomsDriedGrams';
+          requiredAmount = driedReq;
+        }
+      } else if (effectType === 'cocaine') {
         invKey = 'cocaineGrams';
         requiredAmount = dosage === 'micro' ? 0.1 : dosage === 'standard' ? 0.3 : dosage === 'high' ? 0.6 : 1.0;
+      } else if (effectType === 'aurora_powder') {
+        invKey = 'powderGrams' in prev.inventory ? ('powderGrams' as any) : 'cocaineGrams';
+        requiredAmount = dosage === 'micro' ? 0.1 : dosage === 'standard' ? 0.25 : dosage === 'high' ? 0.5 : 1.0;
       } else if (effectType === 'white_widow') {
         invKey = 'whiteWidowGrams';
         requiredAmount = dosage === 'micro' ? 0.2 : dosage === 'standard' ? 0.5 : dosage === 'high' ? 1.0 : 2.0;
@@ -135,29 +165,45 @@ export default function App() {
       } else if (effectType === 'psilocybin') {
         invKey = 'mushroomsGrams';
         requiredAmount = dosage === 'micro' ? 0.5 : dosage === 'standard' ? 1.5 : dosage === 'high' ? 3.5 : 5.0;
-      } else {
+      } else if (effectType === 'lsd_25' || effectType === 'neuro_fractal') {
         invKey = 'lsdSheets';
         requiredAmount = dosage === 'micro' ? 0.05 : dosage === 'standard' ? 0.1 : dosage === 'high' ? 0.2 : 0.5;
+      } else {
+        // Pharma product
+        invKey = (effectType as any) as keyof typeof prev.inventory;
+        requiredAmount = 1;
+        // Deduct from pharmaState if available
+        setPharmaState(pPrev => ({
+          ...pPrev,
+          inventory: {
+            ...pPrev.inventory,
+            [effectType]: Math.max(0, (pPrev.inventory[effectType] || 0) - 1)
+          }
+        }));
       }
 
       const available = (prev.inventory as Record<string, number>)[invKey] || 0;
-      if (available < requiredAmount) {
-        sounds.playAlarmBeep();
+      const pharmaStock = (pharmaState?.inventory as Record<string, number>)?.[effectType] || 0;
+
+      if (available <= 0 && pharmaStock <= 0) {
+        // Substance is not in inventory
         return prev;
       }
+
+      const actualConsumed = Math.min(available, requiredAmount);
 
       // Deduct consumed amount from inventory
       const newInventory = {
         ...prev.inventory,
-        [invKey]: Math.max(0, Math.round((available - requiredAmount) * 100) / 100),
+        [invKey]: Math.max(0, Math.round((available - actualConsumed) * 100) / 100),
       };
 
       // Overdose Risk calculation
       let baseOverdoseChance = 0;
-      if (dosage === 'high') baseOverdoseChance = effectType === 'cocaine' ? 0.30 : 0.15;
-      if (dosage === 'heroic') baseOverdoseChance = effectType === 'cocaine' ? 0.65 : 0.40;
+      if (dosage === 'high') baseOverdoseChance = effectType === 'cocaine' || effectType === 'aurora_powder' ? 0.30 : 0.10;
+      if (dosage === 'heroic') baseOverdoseChance = effectType === 'cocaine' || effectType === 'aurora_powder' ? 0.65 : 0.35;
 
-      if (prev.activeEffect) baseOverdoseChance += 0.25; // Stacking active effect risk
+      if (prev.activeEffect) baseOverdoseChance += 0.20; // Stacking active effect risk
 
       const isOverdose = Math.random() < baseOverdoseChance;
 
@@ -183,51 +229,162 @@ export default function App() {
       let baseDuration = 30;
       const durationMult = dosage === 'micro' ? 0.7 : dosage === 'standard' ? 1.0 : dosage === 'high' ? 1.4 : 2.0;
 
+      let euphoriaScore = 50;
+      let hallucinationScore = 30;
+      let addictionDelta = 5;
+
       switch (effectType) {
+        case 'astral_mushrooms':
+          name =
+            language === 'ru'
+              ? 'Грибы «Астрал» (Серотониновый экстаз, неоновые споры и фракталы)'
+              : 'Astral Mushrooms (Serotonergic Ecstasy & Fractal Spores)';
+          baseDuration = 55;
+          euphoriaScore = dosage === 'micro' ? 35 : dosage === 'standard' ? 70 : dosage === 'high' ? 95 : 100;
+          hallucinationScore = dosage === 'micro' ? 20 : dosage === 'standard' ? 60 : dosage === 'high' ? 90 : 100;
+          addictionDelta = dosage === 'micro' ? 2 : dosage === 'standard' ? 8 : dosage === 'high' ? 18 : 32;
+          break;
         case 'cocaine':
-          name = language === 'ru' ? 'Кокаин (Дофаминовый раш, тахикардия и золотые молнии)' : 'Cocaine (Dopamine Rush, Tachycardia & Gold Arcs)';
+          name = language === 'ru' ? 'Кокаин Fishscale 96% (Дофаминовый раш и молнии)' : 'Cocaine (Dopamine Rush, Tachycardia & Gold Arcs)';
           baseDuration = 25;
+          euphoriaScore = dosage === 'micro' ? 40 : dosage === 'standard' ? 85 : dosage === 'high' ? 98 : 100;
+          hallucinationScore = dosage === 'micro' ? 10 : dosage === 'standard' ? 25 : dosage === 'high' ? 50 : 70;
+          addictionDelta = dosage === 'micro' ? 6 : dosage === 'standard' ? 16 : dosage === 'high' ? 30 : 50;
+          break;
+        case 'aurora_powder':
+          name = language === 'ru' ? 'Порошок «Аврора» (Электрические молнии и сверхскорость)' : 'Aurora Powder (Electric Cyan Strobe & Overclock)';
+          baseDuration = 28;
+          euphoriaScore = dosage === 'micro' ? 45 : dosage === 'standard' ? 88 : dosage === 'high' ? 98 : 100;
+          hallucinationScore = dosage === 'micro' ? 15 : dosage === 'standard' ? 30 : dosage === 'high' ? 60 : 80;
+          addictionDelta = dosage === 'micro' ? 7 : dosage === 'standard' ? 18 : dosage === 'high' ? 35 : 55;
+          break;
+        case 'tramadol':
+          name = language === 'ru' ? '🤢 Трамадол (Тошнотворный эффект, вертиго и качка)' : '🤢 Tramadol (Visceral Nausea, Motion Sickness & Vertigo)';
+          baseDuration = 35;
+          euphoriaScore = dosage === 'micro' ? 15 : dosage === 'standard' ? 30 : dosage === 'high' ? 45 : 50;
+          hallucinationScore = dosage === 'micro' ? 25 : dosage === 'standard' ? 65 : dosage === 'high' ? 90 : 100;
+          addictionDelta = dosage === 'micro' ? 4 : dosage === 'standard' ? 12 : dosage === 'high' ? 25 : 40;
+          break;
+        case 'lyrica':
+          name = language === 'ru' ? '🤢 Лирика / Прегабалин (Двоение в глазах, пьяная атаксия)' : '🤢 Lyrica / Pregabalin (Diplopia Double-Vision & Ataxia)';
+          baseDuration = 35;
+          euphoriaScore = dosage === 'micro' ? 25 : dosage === 'standard' ? 50 : dosage === 'high' ? 70 : 80;
+          hallucinationScore = dosage === 'micro' ? 30 : dosage === 'standard' ? 70 : dosage === 'high' ? 95 : 100;
+          addictionDelta = dosage === 'micro' ? 4 : dosage === 'standard' ? 10 : dosage === 'high' ? 20 : 35;
+          break;
+        case 'xanax':
+          name = language === 'ru' ? 'Ксанакс / Алпразолам (Глубокое затемнение и релакс)' : 'Xanax / Alprazolam (Heavy Downer & Calm)';
+          baseDuration = 35;
+          euphoriaScore = dosage === 'micro' ? 30 : dosage === 'standard' ? 60 : dosage === 'high' ? 80 : 90;
+          hallucinationScore = dosage === 'micro' ? 5 : dosage === 'standard' ? 15 : dosage === 'high' ? 25 : 35;
+          addictionDelta = dosage === 'micro' ? 5 : dosage === 'standard' ? 14 : dosage === 'high' ? 28 : 45;
+          break;
+        case 'morphine':
+          name = language === 'ru' ? 'Морфин / Оксикодон (Золотисто-малиновый транс)' : 'Morphine / Oxycodone (Warm Euphoric Dreamscape)';
+          baseDuration = 40;
+          euphoriaScore = dosage === 'micro' ? 45 : dosage === 'standard' ? 85 : dosage === 'high' ? 98 : 100;
+          hallucinationScore = dosage === 'micro' ? 10 : dosage === 'standard' ? 25 : dosage === 'high' ? 45 : 60;
+          addictionDelta = dosage === 'micro' ? 8 : dosage === 'standard' ? 20 : dosage === 'high' ? 38 : 60;
+          break;
+        case 'codeine':
+          name = language === 'ru' ? 'Кодеин (Фиолетовый сироп Lean и слоу-мо)' : 'Codeine Lean (Purple Syrup Dripping & Slow-Mo)';
+          baseDuration = 35;
+          euphoriaScore = dosage === 'micro' ? 35 : dosage === 'standard' ? 70 : dosage === 'high' ? 88 : 95;
+          hallucinationScore = dosage === 'micro' ? 15 : dosage === 'standard' ? 35 : dosage === 'high' ? 55 : 70;
+          addictionDelta = dosage === 'micro' ? 5 : dosage === 'standard' ? 12 : dosage === 'high' ? 24 : 40;
+          break;
+        case 'ritalin':
+          name = language === 'ru' ? 'Риталин / Аддералл (Лазерный СДВГ-гиперфокус)' : 'Ritalin / Adderall (Laser ADHD Hyper-Focus)';
+          baseDuration = 30;
+          euphoriaScore = dosage === 'micro' ? 35 : dosage === 'standard' ? 70 : dosage === 'high' ? 88 : 95;
+          hallucinationScore = dosage === 'micro' ? 5 : dosage === 'standard' ? 15 : dosage === 'high' ? 25 : 40;
+          addictionDelta = dosage === 'micro' ? 4 : dosage === 'standard' ? 10 : dosage === 'high' ? 22 : 38;
+          break;
+        case 'zolpidem':
+          name = language === 'ru' ? 'Золпидем (Лавандовые сумерки и сонные тени)' : 'Zolpidem (Lavender Dream Veil & Slumber)';
+          baseDuration = 30;
+          euphoriaScore = dosage === 'micro' ? 25 : dosage === 'standard' ? 55 : dosage === 'high' ? 75 : 85;
+          hallucinationScore = dosage === 'micro' ? 20 : dosage === 'standard' ? 50 : dosage === 'high' ? 75 : 90;
+          addictionDelta = dosage === 'micro' ? 3 : dosage === 'standard' ? 8 : dosage === 'high' ? 16 : 28;
+          break;
+        case 'prozac':
+          name = language === 'ru' ? 'Прозак / Флуоксетин (Серотониновый штиль)' : 'Prozac / Fluoxetine (Serotonin Waves)';
+          baseDuration = 35;
+          euphoriaScore = dosage === 'micro' ? 25 : dosage === 'standard' ? 50 : dosage === 'high' ? 70 : 80;
+          hallucinationScore = dosage === 'micro' ? 5 : dosage === 'standard' ? 10 : dosage === 'high' ? 20 : 30;
+          addictionDelta = 1;
+          break;
+        case 'neuro_fractal':
+          name = language === 'ru' ? 'Neuro-Fractal (Матричный код и кибер-глитч)' : 'Neuro-Fractal (Matrix Binary Code & Cyber-Glitch)';
+          baseDuration = 45;
+          euphoriaScore = dosage === 'micro' ? 30 : dosage === 'standard' ? 65 : dosage === 'high' ? 88 : 98;
+          hallucinationScore = dosage === 'micro' ? 40 : dosage === 'standard' ? 80 : dosage === 'high' ? 98 : 100;
+          addictionDelta = dosage === 'micro' ? 3 : dosage === 'standard' ? 7 : dosage === 'high' ? 15 : 25;
           break;
         case 'white_widow':
           name = language === 'ru' ? 'Белая Вдова (Замедление времени и туман)' : 'White Widow (Temporal Dilation & Fog)';
           baseDuration = 30;
+          euphoriaScore = dosage === 'micro' ? 30 : dosage === 'standard' ? 55 : dosage === 'high' ? 75 : 85;
+          hallucinationScore = dosage === 'micro' ? 10 : dosage === 'standard' ? 20 : dosage === 'high' ? 35 : 50;
+          addictionDelta = dosage === 'micro' ? 1 : dosage === 'standard' ? 3 : dosage === 'high' ? 7 : 12;
           break;
         case 'amnesia_haze':
           name = language === 'ru' ? 'Амнезия Хейз (Световая вспышка и скорость)' : 'Amnesia Haze (Exposure Flare & Velocity)';
           baseDuration = 30;
+          euphoriaScore = dosage === 'micro' ? 35 : dosage === 'standard' ? 65 : dosage === 'high' ? 85 : 95;
+          hallucinationScore = dosage === 'micro' ? 15 : dosage === 'standard' ? 30 : dosage === 'high' ? 45 : 60;
+          addictionDelta = dosage === 'micro' ? 1 : dosage === 'standard' ? 4 : dosage === 'high' ? 8 : 14;
           break;
         case 'gorilla_glue':
           name = language === 'ru' ? 'Gorilla Glue #4 (Стоун-эффект и блюр краев)' : 'Gorilla Glue #4 (Couch-Lock & Edge Blur)';
           baseDuration = 30;
+          euphoriaScore = dosage === 'micro' ? 30 : dosage === 'standard' ? 60 : dosage === 'high' ? 80 : 90;
+          hallucinationScore = dosage === 'micro' ? 10 : dosage === 'standard' ? 25 : dosage === 'high' ? 40 : 55;
+          addictionDelta = dosage === 'micro' ? 1 : dosage === 'standard' ? 3 : dosage === 'high' ? 7 : 12;
           break;
         case 'purple_haze':
           name = language === 'ru' ? 'Purple Haze (УФ хроматический сдвиг)' : 'Purple Haze (Ultraviolet Chromatic Shift)';
           baseDuration = 35;
+          euphoriaScore = dosage === 'micro' ? 35 : dosage === 'standard' ? 65 : dosage === 'high' ? 85 : 95;
+          hallucinationScore = dosage === 'micro' ? 20 : dosage === 'standard' ? 45 : dosage === 'high' ? 70 : 85;
+          addictionDelta = dosage === 'micro' ? 2 : dosage === 'standard' ? 5 : dosage === 'high' ? 10 : 16;
           break;
         case 'psilocybin':
           name = language === 'ru' ? 'Псилоцибин (Волновое плавление и RGB-сплит)' : 'Psilocybin (Melting Sine-Wave & RGB Split)';
           baseDuration = 40;
+          euphoriaScore = dosage === 'micro' ? 30 : dosage === 'standard' ? 65 : dosage === 'high' ? 90 : 98;
+          hallucinationScore = dosage === 'micro' ? 25 : dosage === 'standard' ? 60 : dosage === 'high' ? 85 : 98;
+          addictionDelta = dosage === 'micro' ? 2 : dosage === 'standard' ? 6 : dosage === 'high' ? 14 : 24;
           break;
         case 'lsd_25':
           name = language === 'ru' ? 'ЛСД-25 (Калейдоскоп и цикл инверсии)' : 'LSD-25 (Kaleidoscope & Inversion Cycle)';
           baseDuration = 45;
+          euphoriaScore = dosage === 'micro' ? 25 : dosage === 'standard' ? 60 : dosage === 'high' ? 85 : 96;
+          hallucinationScore = dosage === 'micro' ? 35 : dosage === 'standard' ? 75 : dosage === 'high' ? 95 : 100;
+          addictionDelta = dosage === 'micro' ? 2 : dosage === 'standard' ? 5 : dosage === 'high' ? 12 : 22;
           break;
       }
 
       const finalDuration = Math.round(baseDuration * durationMult);
       sounds.playSubstanceIngest(effectType);
 
+      const newAddictionLevel = Math.min(100, (prev.addictionLevel || 0) + addictionDelta);
+
       return {
         ...prev,
+        addictionLevel: newAddictionLevel,
         activeEffect: {
           substanceId: effectType,
           name,
           effectType,
           durationSeconds: finalDuration,
           maxDurationSeconds: finalDuration,
-          intensity: dosage === 'micro' ? 0.5 : dosage === 'standard' ? 1.0 : dosage === 'high' ? 1.8 : 2.8,
+          intensity: dosage === 'micro' ? 0.6 : dosage === 'standard' ? 1.1 : dosage === 'high' ? 2.0 : 3.0,
           dosageTier: dosage,
           startedAt: Date.now(),
+          euphoriaScore,
+          hallucinationScore,
+          addictionDelta,
         },
         inventory: newInventory,
       };
@@ -241,7 +398,7 @@ export default function App() {
     }));
   }, []);
 
-  // Main Simulation Loop (Slower in-game hours, does NOT auto-switch day past 24:00)
+  // Main Simulation Loop (1 in-game day = 15 minutes at x1 speed, scalable with x2 and x3)
   useEffect(() => {
     const speedMultiplier = gameState.activeEffect?.effectType === 'white_widow'
       ? 0.7 // time-dilation slows down
@@ -250,7 +407,9 @@ export default function App() {
       : 1.0;
 
     const currentMultiplier = gameState.timeSpeedMultiplier || 1.0;
-    const intervalTime = Math.max(800, Math.round(7500 / (currentMultiplier * speedMultiplier)));
+    // Base 56.25 seconds per in-game hour: 16 active daytime hours (8:00 to 24:00) = exactly 15 minutes at x1
+    const BASE_HOUR_MS = 56250;
+    const intervalTime = Math.max(1000, Math.round(BASE_HOUR_MS / (currentMultiplier * speedMultiplier)));
 
     const timer = setInterval(() => {
       setGameState((prev) => {
@@ -844,10 +1003,14 @@ export default function App() {
       const inv = { ...prev.inventory };
       if (packagedType === 'ziplocs') {
         inv.auroraPowderGrams = (inv.auroraPowderGrams || 0) + count;
-      } else {
+      } else if (packagedType === 'briquettes') {
         inv.packagedAuroraBriquettes = (inv.packagedAuroraBriquettes || 0) + count;
+      } else {
+        inv.packagedAuroraBlocks = (inv.packagedAuroraBlocks || 0) + count;
       }
 
+      // NO AUTOMATIC SALE: Manufactured powder is stored directly in inventory!
+      // Reputation gain for high-purity batch crafting excellence
       const curRep = prev.buyerReputation || {
         score: 100,
         level: 1,
@@ -861,15 +1024,12 @@ export default function App() {
       return {
         ...prev,
         inventory: inv,
-        cash: prev.cash + value,
         buyerReputation: {
           ...curRep,
-          score: Math.min(1000, curRep.score + 35),
-          successfulDeals: curRep.successfulDeals + 1,
+          score: Math.min(1000, curRep.score + 15),
         },
       };
     });
-    setDailyIncomeEarned((prev) => prev + value);
   };
 
   // Market Handlers
@@ -888,13 +1048,16 @@ export default function App() {
       else if (itemKey === 'purple_haze') inv.purpleHazeGrams = Math.max(0, inv.purpleHazeGrams - gramsOrUnits);
       else if (itemKey === 'psilocybin') inv.mushroomsGrams = Math.max(0, inv.mushroomsGrams - gramsOrUnits);
       else if (itemKey === 'astral_raw') inv.astralMushroomsRawGrams = Math.max(0, (inv.astralMushroomsRawGrams || 0) - gramsOrUnits);
+      else if (itemKey === 'astral_dried') inv.astralMushroomsDriedGrams = Math.max(0, (inv.astralMushroomsDriedGrams || 0) - gramsOrUnits);
       else if (itemKey === 'astral_craft') inv.astralCraftPacks = Math.max(0, (inv.astralCraftPacks || 0) - gramsOrUnits);
       else if (itemKey === 'astral_microdose') inv.astralMicrodoseJars = Math.max(0, (inv.astralMicrodoseJars || 0) - gramsOrUnits);
+      else if (itemKey === 'astral_syndicate') inv.astralSyndicateBoxes = Math.max(0, (inv.astralSyndicateBoxes || 0) - gramsOrUnits);
       else if (itemKey === 'lsd_25') inv.lsdSheets = Math.max(0, inv.lsdSheets - gramsOrUnits);
       else if (itemKey === 'cocaine') inv.cocaineGrams = Math.max(0, (inv.cocaineGrams || 0) - gramsOrUnits);
       else if (itemKey === 'neuro_sheets') inv.neuroSheets = Math.max(0, (inv.neuroSheets || 0) - gramsOrUnits);
       else if (itemKey === 'aurora_powder') inv.auroraPowderGrams = Math.max(0, (inv.auroraPowderGrams || 0) - gramsOrUnits);
       else if (itemKey === 'aurora_briquette') inv.packagedAuroraBriquettes = Math.max(0, (inv.packagedAuroraBriquettes || 0) - gramsOrUnits);
+      else if (itemKey === 'aurora_block') inv.packagedAuroraBlocks = Math.max(0, (inv.packagedAuroraBlocks || 0) - gramsOrUnits);
 
       const effectiveHeat = prev.lawyerRetainerActive ? heatGenerated * 0.5 : heatGenerated;
 
@@ -1201,10 +1364,17 @@ export default function App() {
   const handleResetGame = () => {
     try {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.clear();
     } catch (e) {
       console.warn('Failed to clear saved game state from localStorage:', e);
     }
-    setGameState(INITIAL_GAME_STATE);
+    // Deep clone initial state so absolutely nothing carries over from the previous game
+    setGameState(JSON.parse(JSON.stringify(INITIAL_GAME_STATE)));
+    setPharmaState(JSON.parse(JSON.stringify(INITIAL_PHARMA_STATE)));
+    setDailyIncomeEarned(0);
+    setDayEndReport(null);
+    setDismissedBedtimeDay(null);
+    setCurrentPhase('botany');
   };
 
   const handleConfirmNextDay = () => {
@@ -1216,10 +1386,12 @@ export default function App() {
         hour: 8,
         cash: prev.cash - upkeep.totalDaily,
         policeHeat: Math.min(100, Math.max(0, prev.policeHeat + upkeep.gridAnomalyHeat + upkeep.smellHeat - (prev.lawyerRetainerActive ? 3 : 0))),
+        addictionLevel: Math.max(0, (prev.addictionLevel || 0) - 15),
       };
     });
     setDailyIncomeEarned(0);
     setDayEndReport(null);
+    setDismissedBedtimeDay(null);
   };
 
   return (
@@ -1258,8 +1430,54 @@ export default function App() {
         </div>
       )}
 
+      {/* 23:00 Bedtime Notification (Days do NOT auto-switch without user action!) */}
+      {gameState.hour >= 23 && dismissedBedtimeDay !== gameState.day && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[94%] sm:w-auto px-5 py-4 bg-[#0d121c]/95 backdrop-blur-2xl border-2 border-indigo-500/70 text-white rounded-2xl shadow-[0_0_40px_rgba(99,102,241,0.45)] flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center text-indigo-300 text-xl shrink-0 shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+              🌙
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 font-bold">
+                  [23:00 · ГЛУБОКАЯ НОЧЬ]
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+                  Клиенты разошлись
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-white mt-0.5">
+                Пора ложиться спать и переходить в новый день!
+              </h4>
+              <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                После 23:00 клиентов нет. Дни не переключаются автоматически — вы сами решаете, когда лечь спать.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            <button
+              onClick={() => {
+                sounds.playClick();
+                handleTriggerDayEnd();
+              }}
+              className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 hover:from-indigo-400 hover:to-purple-400 text-white font-mono font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>🛏️ Завершить день</span>
+            </button>
+            <button
+              onClick={() => setDismissedBedtimeDay(gameState.day)}
+              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs cursor-pointer border border-white/5"
+              title="Закрыть уведомление"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Viewport Container - Responsive Grid & Flex Layout with Bottom Tab Clearance */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 pb-24 md:pb-6">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-4 pb-28 md:pb-6 overflow-x-hidden">
         {currentPhase === 'botany' && (
           <BotanyPhase
             gameState={gameState}
@@ -1271,6 +1489,7 @@ export default function App() {
             onDeductCash={handleDeductCash}
             onConsumeSupplies={handleConsumeSupplies}
             onBuySupply={handleBuySupply}
+            onBuyLicense={handleBuyLicense}
             onAdjustNutrients={handleAdjustNutrients}
             onSwitchMedium={handleSwitchMedium}
             onToggleLight={handleToggleLight}
@@ -1289,7 +1508,10 @@ export default function App() {
             onCreateColony={handleCreateColony}
             onHarvestColony={handleHarvestColony}
             onPackageMushrooms={handlePackageMushrooms}
-            onIngestAstral={() => handleIngestSample('psilocybin')}
+            onSellMushroomDeal={handleSellStreetDeal}
+            onBuyLicense={handleBuyLicense}
+            onIngestAstral={() => handleIngestSample('astral_mushrooms', 'standard')}
+            onIngestSample={handleIngestSample}
             language={language}
           />
         )}
@@ -1322,6 +1544,7 @@ export default function App() {
             onDeductCash={handleDeductCash}
             onAddInventory={handleAddInventory}
             onFinishPowderBatch={handleFinishPowderBatch}
+            onSellPowderDeal={handleSellStreetDeal}
             language={language}
           />
         )}
@@ -1333,6 +1556,15 @@ export default function App() {
             onUpdatePharmaState={setPharmaState}
             onAddCash={(amount) => setGameState(prev => ({ ...prev, cash: prev.cash + amount }))}
             onAddHeat={(heat) => setGameState(prev => ({ ...prev, policeHeat: Math.min(100, Math.max(0, prev.policeHeat + heat)) }))}
+            onDeductInventory={(itemKey, amount) => {
+              setGameState(prev => ({
+                ...prev,
+                inventory: {
+                  ...prev.inventory,
+                  [itemKey]: Math.max(0, ((prev.inventory as any)[itemKey] || 0) - amount)
+                }
+              }));
+            }}
           />
         )}
 
@@ -1343,6 +1575,7 @@ export default function App() {
             onUpdatePharmaState={setPharmaState}
             onAddCash={(amount) => setGameState(prev => ({ ...prev, cash: prev.cash + amount }))}
             onAddHeat={(heat) => setGameState(prev => ({ ...prev, policeHeat: Math.min(100, Math.max(0, prev.policeHeat + heat)) }))}
+            onTriggerDayEnd={handleTriggerDayEnd}
           />
         )}
 
@@ -1403,6 +1636,7 @@ export default function App() {
             onToggleLawyerRetainer={handleToggleLawyerRetainer}
             onPayPoliceBribe={handlePayPoliceBribe}
             onAdvanceDay={handleTriggerDayEnd}
+            onResetGame={handleResetGame}
             language={language}
           />
         )}
@@ -1434,6 +1668,7 @@ export default function App() {
         onClose={() => setIsSampleModalOpen(false)}
         onSelectEffect={handleIngestSample}
         gameState={gameState}
+        pharmaState={pharmaState}
         language={language}
       />
 

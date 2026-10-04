@@ -240,7 +240,17 @@ export type DrugEffectType =
   | 'psilocybin'
   | 'lsd_25'
   | 'cocaine'
-  | 'neuro_fractal';
+  | 'aurora_powder'
+  | 'neuro_fractal'
+  | 'astral_mushrooms'
+  | 'tramadol'
+  | 'lyrica'
+  | 'xanax'
+  | 'morphine'
+  | 'codeine'
+  | 'ritalin'
+  | 'zolpidem'
+  | 'prozac';
 
 export type DosageTier = 'micro' | 'standard' | 'high' | 'heroic';
 
@@ -254,6 +264,9 @@ export interface ActiveDrugEffect {
   dosageTier?: DosageTier;
   dosageLabel?: string;
   startedAt: number;
+  euphoriaScore?: number; // 0 to 100%
+  hallucinationScore?: number; // 0 to 100%
+  addictionDelta?: number; // +% addiction
 }
 
 export interface MarketHistoryPoint {
@@ -380,14 +393,16 @@ export interface GameState {
     filterPowderGrams?: number; // Фильтр-порошок
     stabilizerPowderGrams?: number; // Стабилизатор
     packagingPacks?: number; // Упаковочный материал
-    auroraPowderGrams?: number; // Готовый Синтетический Порошок «Аврора»
-    packagedAuroraBriquettes?: number; // Расфасованные брикеты
+    auroraPowderGrams?: number; // Готовый Синтетический Порошок «Аврора» (1г)
+    packagedAuroraBriquettes?: number; // Расфасованные брикеты (10г)
+    packagedAuroraBlocks?: number; // Вакуумные блоки (50г)
     fictionalMyceliumKits?: number; // «Мицелиевый набор»
     nutrientMixAGrams?: number; // «Питательная смесь A»
     growthStimulantDoses?: number; // «Стимулятор роста»
     fictionalContainers?: number; // «Контейнер»
     environmentStabilizers?: number; // «Стабилизатор среды»
     astralMushroomsRawGrams?: number; // Неоновые грибы «Астрал» (сырой урожай)
+    astralMushroomsDriedGrams?: number; // Сублимированные высушенные грибы «Астрал» (готовые к фасовке/дегустации)
     astralCraftPacks?: number; // 5г Крафтовые пакеты «Шепот Астрала»
     astralMicrodoseJars?: number; // 25г Банки микродозинга
     astralSyndicateBoxes?: number; // 100г Вакуум-боксы Синдиката
@@ -415,6 +430,7 @@ export interface GameState {
   marketEvents: MarketEvent[];
   buyerReputation: BuyerReputation;
   activeEffect: ActiveDrugEffect | null;
+  addictionLevel?: number; // 0 to 100 Player chemical dependence / tolerance
   marketPrices: Record<string, MarketCommodityData>;
   syndicateLicenses?: Record<SyndicateLicenseId, boolean>;
   courierStats?: {

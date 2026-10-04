@@ -1,22 +1,27 @@
 import fs from 'fs';
 import path from 'path';
 
-console.log('Copying single-file HTML launcher to root repository directory...');
+console.log('Copying single-file HTML standalone game to root repository directory...');
 
 const distDir = path.resolve('dist');
 const indexPath = path.join(distDir, 'index.html');
 
 if (!fs.existsSync(indexPath)) {
-  console.error('dist/index.html not found! Run npm run build first.');
+  console.error('dist/index.html not found! Run vite build first.');
   process.exit(1);
 }
 
-const launcherPath = path.resolve('Underground-Syndicate-Launcher.html');
-const offlinePath = path.resolve('Play-Game-Offline.html');
+const targetFiles = [
+  'Play-Game-Offline.html',
+  'Underground-Syndicate-Launcher.html',
+  'Underground-Syndicate-Game.html',
+];
 
-fs.copyFileSync(indexPath, launcherPath);
-fs.copyFileSync(indexPath, offlinePath);
+targetFiles.forEach((file) => {
+  const destPath = path.resolve(file);
+  fs.copyFileSync(indexPath, destPath);
+  const sizeMb = (fs.statSync(destPath).size / 1024 / 1024).toFixed(2);
+  console.log(` ✅ Generated standalone game file: ${file} (${sizeMb} MB)`);
+});
 
-console.log(`\n🎉 Single-file HTML Launchers updated successfully:`);
-console.log(` - ${launcherPath} (${(fs.statSync(launcherPath).size / 1024 / 1024).toFixed(2)} MB)`);
-console.log(` - ${offlinePath} (${(fs.statSync(offlinePath).size / 1024 / 1024).toFixed(2)} MB)`);
+console.log('\n🎉 All single-file game files are fully updated and ready to play offline!');

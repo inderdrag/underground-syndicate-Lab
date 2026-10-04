@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LSDSynthesisBatch } from '../../types/game';
 import {
   Wrench,
@@ -64,16 +64,36 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
 
   // --- STAGE 1: REFLUX THERMOSTAT ("Термостат") STATES ---
   const [targetTemp, setTargetTemp] = useState<number>(45.0);
-  const [currentTemp, setCurrentTemp] = useState<number>(batch.refluxTempC || 45.0);
-  const [thermostatTimer, setThermostatTimer] = useState<number>(30);
-  const [thermostatActive, setThermostatActive] = useState<boolean>(false);
-  const [thermostatGreenTicks, setThermostatGreenTicks] = useState<number>(0);
+  const [currentTemp, setCurrentTemp] = useState<number>(batch.refluxTempC || 36.0);
+  const [thermostatTimer, setThermostatTimer] = useState<number>(10.0);
+  const [thermostatActive, setThermostatActive] = useState<boolean>(true);
+  const [heldGreenSeconds, setHeldGreenSeconds] = useState<number>(0);
+  const [isHeatingBoost, setIsHeatingBoost] = useState<boolean>(false);
+
+  const targetTempRef = useRef(targetTemp);
+  const currentTempRef = useRef(currentTemp);
+  const isHeatingBoostRef = useRef(isHeatingBoost);
+  const heldGreenSecondsRef = useRef(0);
+  const thermostatTimerRef = useRef(10.0);
+  const onCompleteMinigameRef = useRef(onCompleteMinigame);
+
+  useEffect(() => {
+    targetTempRef.current = targetTemp;
+  }, [targetTemp]);
+
+  useEffect(() => {
+    isHeatingBoostRef.current = isHeatingBoost;
+  }, [isHeatingBoost]);
+
+  useEffect(() => {
+    onCompleteMinigameRef.current = onCompleteMinigame;
+  }, [onCompleteMinigame]);
 
   // --- STAGE 2: STIRRER VORTEX ("Вихрь") STATES ---
   const [currentRpm, setCurrentRpm] = useState<number>(batch.magneticStirrerRpm || 520);
-  const [stirrerTimer, setStirrerTimer] = useState<number>(30);
+  const [stirrerTimer, setStirrerTimer] = useState<number>(20);
   const [stirrerActive, setStirrerActive] = useState<boolean>(false);
-  const [stirrerGreenTicks, setStirrerGreenTicks] = useState<number>(0);
+  const stirrerGreenTicksRef = useRef<number>(0);
 
   // --- STAGE 3: RED LIGHT CHROMATOGRAPHY ("Фракции") STATES ---
   const [bandPosition, setBandPosition] = useState<number>(15);
@@ -106,57 +126,91 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
     return () => clearInterval(interval);
   }, [stageIndex, connectedPorts.length, onCompleteMinigame]);
 
-  // ================= STAGE 1 THERMOSTAT TIMER LOOP (30 SECONDS) =================
+  // ================= STAGE 1 THERMOSTAT TIMER & REAL-TIME PHYSICS LOOP (10 SECONDS) =================
   useEffect(() => {
     if (stageIndex !== 1 || !thermostatActive) return;
 
-    const interval = setInterval(() => {
-      // Smooth temperature drift toward targetTemp
-      setCurrentTemp((prev) => {
-        const diff = targetTemp - prev;
-        const drift = diff * 0.35 + (Math.random() - 0.5) * 0.6;
-        const nextTemp = Math.max(20, Math.min(80, prev + drift));
+    thermostatTimerRef.current = thermostatTimer;
+    heldGreenSecondsRef.current = heldGreenSeconds;
 
+    const interval = setInterval(() => {
+      // 1. Natural ambient heat dissipation: yellow slider naturally drifts downward!
+      const coolingRate = 0.085; // ~1.7°C / sec downward drift towards ambient
+
+      // 2. Heater power driven by targetTemp slider (+ boost if held)
+      const effectiveTarget = isHeatingBoostRef.current
+        ? Math.min(85, targetTempRef.current + 16)
+        : targetTempRef.current;
+
+      setCurrentTemp((prev) => {
+        // Temperature difference between heater setpoint and current bath temperature
+        const diff = effectiveTarget - prev;
+        
+        // Heat transfer formula:
+        // When target > prev: heater rapidly heats water
+        // When target < prev: heater lowers output, accelerating cooling
+        const heatTransfer = diff > 0 ? diff * 0.12 : diff * 0.14;
+        
+        // Natural heat dissipation to ambient room temp (20°C):
+        // Yellow slider naturally pulls down, player must maintain heating!
+        const ambientLoss = prev > 20.5 ? coolingRate : 0;
+        
+        const jitter = (Math.random() - 0.5) * 0.12;
+        const nextTemp = Math.max(20.0, Math.min(80.0, prev + heatTransfer - ambientLoss + jitter));
+        currentTempRef.current = nextTemp;
+
+        // Check if inside target green zone (42.0°C to 48.0°C)
         if (nextTemp >= 42.0 && nextTemp <= 48.0) {
-          setThermostatGreenTicks((g) => g + 1);
+          heldGreenSecondsRef.current = Math.min(10.0, heldGreenSecondsRef.current + 0.05);
+          setHeldGreenSeconds(heldGreenSecondsRef.current);
         }
+
         return nextTemp;
       });
 
-      setThermostatTimer((prev) => {
-        if (prev <= 1) {
-          setThermostatActive(false);
-          sounds.playOverrideSuccess();
+      // 3. Decrement 10-second timer
+      thermostatTimerRef.current = Math.max(0, thermostatTimerRef.current - 0.05);
+      const remainingTime = thermostatTimerRef.current;
+      setThermostatTimer(remainingTime);
 
-          const greenRatio = thermostatGreenTicks / 30;
-          const stars = greenRatio >= 0.6 ? 3 : greenRatio >= 0.3 ? 2 : 1;
-          const purityBonus = Math.min(25, Math.max(10, Math.round(greenRatio * 25)));
+      if (remainingTime <= 0) {
+        clearInterval(interval);
+        setThermostatActive(false);
+        sounds.playOverrideSuccess();
 
-          onCompleteMinigame({
-            stars,
-            purityDelta: purityBonus,
-            yieldDelta: 0,
-            feedback: `Термостат выдержан в зелёной зоне (42-48°C)! Чистота +${purityBonus}%`
-          });
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+        const heldTime = heldGreenSecondsRef.current;
+        const ratio = heldTime / 10.0;
+        const stars = ratio >= 0.6 ? 3 : ratio >= 0.35 ? 2 : 1;
+        const purityBonus = Math.min(25, Math.max(5, Math.round(ratio * 25)));
+
+        onCompleteMinigameRef.current({
+          stars,
+          purityDelta: purityBonus,
+          yieldDelta: 0,
+          feedback: ratio >= 0.6
+            ? `Идеально! Водяная баня удержана в зелёной зоне ${heldTime.toFixed(1)}с из 10с! Чистота +${purityBonus}%`
+            : ratio >= 0.35
+            ? `Хорошо! Температура бани удержана ${heldTime.toFixed(1)}с из 10с. Чистота +${purityBonus}%`
+            : `Температура часто выходила из зелёной зоны (удержано ${heldTime.toFixed(1)}с из 10с). Чистота +${purityBonus}%`
+        });
+      }
+    }, 50); // 20 updates per second for real-time responsiveness
 
     return () => clearInterval(interval);
-  }, [stageIndex, thermostatActive, targetTemp, thermostatGreenTicks, onCompleteMinigame]);
+  }, [stageIndex, thermostatActive]);
 
-  // ================= STAGE 2 STIRRER TIMER LOOP (30 SECONDS) =================
+  // ================= STAGE 2 STIRRER TIMER LOOP (20 SECONDS) =================
   useEffect(() => {
     if (stageIndex !== 2 || !stirrerActive) return;
+
+    stirrerGreenTicksRef.current = 0;
 
     const interval = setInterval(() => {
       // Smooth natural RPM decay (-20 RPM per second)
       setCurrentRpm((prev) => {
         const nextRpm = Math.max(100, Math.min(900, prev - 18 + (Math.random() - 0.5) * 6));
         if (nextRpm >= 450 && nextRpm <= 600) {
-          setStirrerGreenTicks((g) => g + 1);
+          stirrerGreenTicksRef.current += 1;
         }
         return nextRpm;
       });
@@ -166,11 +220,11 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
           setStirrerActive(false);
           sounds.playOverrideSuccess();
 
-          const greenRatio = stirrerGreenTicks / 30;
+          const greenRatio = stirrerGreenTicksRef.current / 20;
           const stars = greenRatio >= 0.6 ? 3 : greenRatio >= 0.3 ? 2 : 1;
           const purityBonus = Math.min(20, Math.max(10, Math.round(greenRatio * 20)));
 
-          onCompleteMinigame({
+          onCompleteMinigameRef.current({
             stars,
             purityDelta: purityBonus,
             yieldDelta: 0,
@@ -183,7 +237,7 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [stageIndex, stirrerActive, stirrerGreenTicks, onCompleteMinigame]);
+  }, [stageIndex, stirrerActive]);
 
   // ================= STAGE 3 CHROMATOGRAPHY BAND ANIMATION =================
   useEffect(() => {
@@ -424,53 +478,111 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
       {/* ================= STAGE 1: REFLUX THERMOSTAT ("Термостат") ================= */}
       {stageIndex === 1 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-purple-500/20 pb-3">
+          <div className="flex items-center justify-between border-b border-purple-500/20 pb-3 flex-wrap gap-2">
             <div>
               <span className="text-[11px] font-mono text-purple-400 font-bold uppercase tracking-wider block">
                 [ Этап 2 из 5: Обратный Холодильник («Термостат») ]
               </span>
               <h3 className="text-lg font-bold text-white">Регулировка температуры водяной бани</h3>
             </div>
-            <span className="text-xs bg-purple-950 text-purple-300 px-3.5 py-1.5 rounded-xl border border-purple-800 font-mono font-bold flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-purple-400 animate-spin" />
-              Таймер: {thermostatTimer}с
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-3 py-1.5 rounded-xl border font-mono font-bold flex items-center gap-1.5 ${
+                thermostatTimer <= 3 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-purple-950 text-purple-300 border-purple-800'
+              }`}>
+                <Clock className="w-3.5 h-3.5 text-purple-400" />
+                Таймер: {thermostatTimer.toFixed(1)}с
+              </span>
+              <span className="text-xs bg-emerald-950/80 text-emerald-300 px-3 py-1.5 rounded-xl border border-emerald-500/40 font-mono font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                Удержано: {heldGreenSeconds.toFixed(1)} / 10.0с
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-slate-300 font-mono">
-            Удерживайте температуру водяной бани в зелёной зоне <strong className="text-emerald-400">(42°C – 48°C)</strong> во время реакционного прогрева.
+            Удерживайте жёлтый ползунок водяной бани в зелёной зоне <strong className="text-emerald-400">(42°C – 48°C)</strong> в течение <strong className="text-amber-300">10 секунд таймера</strong>. Баня естественно остывает, поэтому регулируйте нагрев!
           </p>
 
           <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-5 shadow-inner">
-            {/* Temperature Gauge Bar */}
-            <div className="relative h-14 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center px-2">
-              {/* Green Zone (42°C to 48°C = 36.6% to 46.6% of 20-80°C range) */}
-              <div className="absolute left-[36.6%] w-[10%] top-1 bottom-1 bg-emerald-500/30 border-x-2 border-emerald-400 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                <span className="text-[10px] font-mono font-bold text-emerald-300 whitespace-nowrap">42–48°C</span>
+            {/* Holding progress bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-mono">
+                <span className="text-slate-400">Прогресс удержания (минимум 6.0с для ★★★):</span>
+                <span className={`font-bold ${heldGreenSeconds >= 6.0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {((heldGreenSeconds / 10.0) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div
+                  className={`h-full transition-all duration-100 ${
+                    heldGreenSeconds >= 6.0 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-gradient-to-r from-amber-500 to-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(100, (heldGreenSeconds / 10.0) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Temperature Gauge Bar with Yellow Needle and Target Marker */}
+            <div className="relative h-16 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center px-2 select-none">
+              {/* Tick marks */}
+              <div className="absolute inset-x-2 top-0 bottom-0 flex justify-between items-center opacity-20 pointer-events-none text-[8px] font-mono text-slate-500 px-1">
+                <span>20°</span>
+                <span>30°</span>
+                <span>40°</span>
+                <span>50°</span>
+                <span>60°</span>
+                <span>70°</span>
+                <span>80°</span>
               </div>
 
-              {/* Current Temperature Indicator Needle */}
+              {/* Green Zone (42°C to 48°C = (42-20)/60=36.66% to (48-20)/60=46.66% -> 10% width) */}
+              <div className="absolute left-[36.66%] w-[10%] top-1 bottom-1 bg-emerald-500/30 border-x-2 border-emerald-400 rounded-lg flex flex-col items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.35)] z-10 pointer-events-none">
+                <span className="text-[9px] font-mono font-black text-emerald-300 whitespace-nowrap">42–48°C</span>
+                <span className="text-[7px] font-mono text-emerald-400 uppercase font-bold tracking-tight">ЗОНА</span>
+              </div>
+
+              {/* Heater Setpoint Needle (Purple notch) */}
               <div
-                className="absolute top-1 bottom-1 w-3.5 bg-amber-400 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.8)] transition-all duration-300"
-                style={{ left: `${Math.max(2, Math.min(95, ((currentTemp - 20) / 60) * 100))}%` }}
-              />
+                className="absolute top-0 bottom-0 w-1 bg-purple-500/80 z-20 pointer-events-none transition-all duration-75 flex flex-col items-center justify-between py-0.5"
+                style={{ left: `${Math.max(2, Math.min(96, ((targetTemp - 20) / 60) * 100))}%` }}
+                title={`Уставка нагревателя: ${targetTemp.toFixed(1)}°C`}
+              >
+                <div className="w-2.5 h-1.5 bg-purple-400 rounded-t-sm" />
+                <div className="w-2.5 h-1.5 bg-purple-400 rounded-b-sm" />
+              </div>
+
+              {/* Current Temperature Indicator Needle (Yellow slider / needle) */}
+              <div
+                className="absolute top-1 bottom-1 w-4 bg-amber-400 border-2 border-amber-200 rounded-full shadow-[0_0_16px_rgba(251,191,36,0.95)] transition-all duration-75 z-30 flex items-center justify-center"
+                style={{ left: `calc(${Math.max(2, Math.min(96, ((currentTemp - 20) / 60) * 100))}% - 8px)` }}
+              >
+                <div className="w-1 h-6 bg-amber-950 rounded-full" />
+              </div>
             </div>
 
-            <div className="flex justify-between items-center text-xs font-mono">
-              <span className="text-slate-400">
-                Текущая температура: <strong className={`text-sm font-bold ${currentTemp >= 42 && currentTemp <= 48 ? 'text-emerald-400' : 'text-amber-400'}`}>{currentTemp.toFixed(1)}°C</strong>
+            {/* Current Temperature & Warning status */}
+            <div className="flex justify-between items-center text-xs font-mono flex-wrap gap-2">
+              <span className="text-slate-300">
+                Температура бани (жёлтый): <strong className={`text-base font-bold tabular-nums ${currentTemp >= 42 && currentTemp <= 48 ? 'text-emerald-400' : 'text-amber-400'}`}>{currentTemp.toFixed(1)}°C</strong>
+                <span className="text-slate-500 text-[11px] ml-2">(Уставка: {targetTemp.toFixed(1)}°C)</span>
               </span>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${currentTemp >= 42 && currentTemp <= 48 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'}`}>
-                {currentTemp >= 42 && currentTemp <= 48 ? '✓ В ЗЕЛЁНОЙ ЗОНЕ' : currentTemp < 42 ? '❄️ ТРЕБУЕТСЯ НАГРЕВ' : '🔥 ПЕРЕГРЕВ'}
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                currentTemp >= 42 && currentTemp <= 48
+                  ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse'
+                  : currentTemp < 42
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+              }`}>
+                {currentTemp >= 42 && currentTemp <= 48 ? '✓ В ЗЕЛЁНОЙ ЗОНЕ (ОПТИМУМ)' : currentTemp < 42 ? '❄️ ТРЕБУЕТСЯ НАГРЕВ (ПОДНИМИТЕ)' : '🔥 ПЕРЕГРЕВ (ОПУСТИТЕ)'}
               </span>
             </div>
 
-            {/* Slider Control */}
+            {/* Range Slider Control */}
             <div className="space-y-2 pt-1">
               <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                <span>20°C (Охлаждение)</span>
-                <span className="text-purple-300 font-bold">Цель: {targetTemp.toFixed(1)}°C</span>
-                <span>80°C (Нагрев)</span>
+                <span>❄️ 20°C (Охлаждение)</span>
+                <span className="text-amber-300 font-bold">Нагрев регулятора: {targetTemp.toFixed(1)}°C</span>
+                <span>🔥 80°C (Макс. нагрев)</span>
               </div>
 
               <input
@@ -479,49 +591,92 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
                 max="80"
                 step="0.5"
                 value={targetTemp}
-                onChange={(e) => setTargetTemp(Number(e.target.value))}
-                className="w-full accent-purple-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                onChange={(e) => {
+                  setTargetTemp(Number(e.target.value));
+                  if (!thermostatActive && thermostatTimer > 0) setThermostatActive(true);
+                }}
+                className="w-full accent-amber-400 cursor-pointer h-3 bg-slate-800 rounded-lg"
               />
             </div>
 
-            {/* Preset Buttons */}
-            <div className="flex items-center justify-center gap-2 pt-1">
+            {/* Quick Preset and Step Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <button
-                onClick={() => { setTargetTemp(30); sounds.playClick(); }}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-mono font-bold cursor-pointer"
+                onClick={() => {
+                  setTargetTemp((t) => Math.max(20, Number((t - 3).toFixed(1))));
+                  sounds.playClick();
+                }}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 rounded-xl text-xs font-mono font-bold cursor-pointer active:scale-95"
               >
-                ❄️ 30°C
+                ❄️ -3°C
               </button>
               <button
-                onClick={() => { setTargetTemp(45); sounds.playClick(); }}
-                className="px-4 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 rounded-xl text-xs font-mono font-bold cursor-pointer shadow-md"
+                onClick={() => { setTargetTemp(30); sounds.playClick(); }}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-mono font-bold cursor-pointer active:scale-95"
               >
-                🎯 45°C (Оптимум)
+                30°C
+              </button>
+              <button
+                onClick={() => { setTargetTemp(47.5); sounds.playClick(); }}
+                className="px-4 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 rounded-xl text-xs font-mono font-bold cursor-pointer shadow-md active:scale-95"
+              >
+                🎯 47.5°C (Баланс остывания)
               </button>
               <button
                 onClick={() => { setTargetTemp(60); sounds.playClick(); }}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-mono font-bold cursor-pointer"
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-mono font-bold cursor-pointer active:scale-95"
               >
-                🔥 60°C
+                60°C
+              </button>
+              <button
+                onClick={() => {
+                  setTargetTemp((t) => Math.min(80, Number((t + 3).toFixed(1))));
+                  sounds.playClick();
+                }}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-300 rounded-xl text-xs font-mono font-bold cursor-pointer active:scale-95"
+              >
+                🔥 +3°C
+              </button>
+            </div>
+
+            {/* Tactical Hold-to-Heat Button (Instant boost against cooling) */}
+            <div className="pt-1">
+              <button
+                onMouseDown={() => { setIsHeatingBoost(true); sounds.playClick(); }}
+                onMouseUp={() => setIsHeatingBoost(false)}
+                onTouchStart={() => { setIsHeatingBoost(true); sounds.playClick(); }}
+                onTouchEnd={() => setIsHeatingBoost(false)}
+                className={`w-full py-2.5 px-4 rounded-xl border font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 select-none cursor-pointer ${
+                  isHeatingBoost
+                    ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400 shadow-[0_0_18px_rgba(245,158,11,0.6)] scale-[0.98]'
+                    : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                }`}
+              >
+                <Flame className={`w-4 h-4 ${isHeatingBoost ? 'animate-bounce text-white' : 'text-amber-400'}`} />
+                <span>
+                  {isHeatingBoost ? '⚡ ФОРСАЖ НАГРЕВА АКТИВЕН (+16°C)' : 'УДЕРЖИВАЙТЕ ДЛЯ ФОРСАЖА НАГРЕВА'}
+                </span>
               </button>
             </div>
           </div>
 
-          {!thermostatActive ? (
+          {!thermostatActive && thermostatTimer <= 0 ? (
             <button
               onClick={() => {
+                setThermostatTimer(10.0);
+                setHeldGreenSeconds(0);
+                setCurrentTemp(38.0);
                 setThermostatActive(true);
-                setThermostatTimer(30);
                 sounds.playClick();
               }}
               className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 text-white font-black rounded-2xl shadow-xl transition-all text-sm cursor-pointer active:scale-95 flex items-center justify-center gap-2 min-h-[48px]"
             >
               <Zap className="w-5 h-5 fill-white" />
-              <span>ЗАПУСТИТЬ ТЕРМОСТАТИРОВАНИЕ (30 СЕКУНД)</span>
+              <span>ПОВТОРИТЬ РЕГУЛИРОВКУ БАНИ (10 СЕКУНД)</span>
             </button>
           ) : (
             <div className="text-center text-xs text-purple-300 font-mono py-2 bg-purple-950/40 border border-purple-500/30 rounded-xl animate-pulse">
-              ⏱️ Идёт реакция (30 сек)... Двигайте ползунок, поддерживая температуру в диапазоне 42–48°C!
+              ⏱️ Идёт таймер (10 сек)... Удерживайте жёлтый ползунок в диапазоне 42–48°C!
             </div>
           )}
         </div>
@@ -604,17 +759,17 @@ export const LSDMiniGames: React.FC<LSDMiniGamesProps> = ({
             <button
               onClick={() => {
                 setStirrerActive(true);
-                setStirrerTimer(30);
+                setStirrerTimer(20);
                 sounds.playClick();
               }}
               className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white font-black rounded-2xl shadow-xl transition-all text-sm cursor-pointer active:scale-95 flex items-center justify-center gap-2 min-h-[48px]"
             >
               <RotateCw className="w-5 h-5 text-white" />
-              <span>ВКЛЮЧИТЬ МЕШАЛКУ (30 СЕКУНД)</span>
+              <span>ВКЛЮЧИТЬ МЕШАЛКУ (20 СЕКУНД)</span>
             </button>
           ) : (
             <div className="text-center text-xs text-indigo-300 font-mono py-2 bg-indigo-950/40 border border-indigo-500/30 rounded-xl animate-pulse">
-              ⏱️ Мешалка работает (30 сек)... Нажимайте кнопки Импульса или Тормоза для поддержания 450–600 RPM!
+              ⏱️ Мешалка работает (20 сек)... Нажимайте кнопки Импульса или Тормоза для поддержания 450–600 RPM!
             </div>
           )}
         </div>

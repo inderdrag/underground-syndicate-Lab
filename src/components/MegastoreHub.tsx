@@ -725,7 +725,7 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <div className="flex lg:grid lg:grid-cols-5 overflow-x-auto gap-2.5 pb-2 lg:pb-0 scrollbar-none">
           {licensesCatalog.map((lic) => {
             const unlocked = isLicenseUnlocked(lic.id);
             const canAfford = gameState.cash >= lic.cost;
@@ -734,7 +734,7 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
             return (
               <div
                 key={lic.id}
-                className={`p-3 rounded-2xl border flex flex-col justify-between space-y-2.5 transition-all ${
+                className={`p-3 rounded-2xl border flex flex-col justify-between space-y-2.5 transition-all shrink-0 min-w-[200px] lg:min-w-0 ${
                   unlocked
                     ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-300'
                     : 'bg-[#090e17] border-white/10 text-slate-300'

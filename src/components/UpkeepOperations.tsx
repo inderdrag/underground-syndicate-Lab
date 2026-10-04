@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GameState } from '../types/game';
 import { calculateDailyUpkeep } from '../engine/simulationEngine';
-import { Zap, Sun, ShieldAlert, Users, DollarSign, Home, AlertTriangle, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Zap, Sun, ShieldAlert, Users, DollarSign, Home, AlertTriangle, CheckCircle, ShieldCheck, RotateCcw, X } from 'lucide-react';
 import { sounds } from '../engine/soundEffects';
+import { hapticFeedback } from '../utils/haptics';
 import { Language, translations } from '../i18n/translations';
 
 interface UpkeepOperationsProps {
@@ -15,6 +16,7 @@ interface UpkeepOperationsProps {
   onToggleLawyerRetainer: () => void;
   onPayPoliceBribe: () => void;
   onAdvanceDay: () => void;
+  onResetGame?: () => void;
   language: Language;
 }
 
@@ -28,10 +30,12 @@ export const UpkeepOperations: React.FC<UpkeepOperationsProps> = ({
   onToggleLawyerRetainer,
   onPayPoliceBribe,
   onAdvanceDay,
+  onResetGame,
   language,
 }) => {
   const t = translations[language];
   const upkeep = calculateDailyUpkeep(gameState);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -269,6 +273,80 @@ export const UpkeepOperations: React.FC<UpkeepOperationsProps> = ({
           </div>
         </section>
       </div>
+
+      {/* Danger Zone: Start New Game */}
+      <section className="bg-rose-950/20 border border-rose-500/30 rounded-2xl p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-rose-400 font-bold text-base">
+              <RotateCcw className="w-5 h-5" />
+              <span>{language === 'ru' ? 'Новая игра' : 'New Game'}</span>
+            </div>
+            <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
+              {language === 'ru'
+                ? 'Начать игру полностью заново с нуля. Все сохранения, деньги, склад, растения и прогресс лабораторий будут безвозвратно очищены, ничего с прошлой игры не останется.'
+                : 'Start a completely fresh game from scratch. All save data, cash, inventory, plants, and lab progression will be wiped with nothing remaining.'}
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setShowResetConfirm(true);
+            }}
+            className="px-5 py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0 min-h-[44px]"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>{language === 'ru' ? 'НОВАЯ ИГРА' : 'START NEW GAME'}</span>
+          </button>
+        </div>
+      </section>
+
+      {/* Reset Game Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-[#0e121a] border border-rose-500/40 rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-base">
+                <AlertTriangle className="w-5 h-5" />
+                <span>{language === 'ru' ? 'Начать новую игру?' : 'Start New Game?'}</span>
+              </div>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              {language === 'ru'
+                ? 'Вы уверены, что хотите начать чистую игру с нуля? Ничего с прошлой игры не останется: деньги, склад, растения, партии синтеза, открытые улучшения и все сохранения будут полностью очищены.'
+                : 'Are you sure you want to start a fresh game from scratch? Nothing from the previous game will remain: cash, inventory, plants, synthesis batches, unlocked upgrades and all saves will be completely wiped.'}
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold cursor-pointer transition-colors min-h-[44px]"
+              >
+                {language === 'ru' ? 'Отмена' : 'Cancel'}
+              </button>
+              <button
+                onClick={() => {
+                  hapticFeedback.heavy();
+                  sounds.playCash();
+                  setShowResetConfirm(false);
+                  onResetGame?.();
+                }}
+                className="px-5 py-2 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all active:scale-95 min-h-[44px]"
+              >
+                {language === 'ru' ? 'Да, начать заново' : 'Yes, Start Fresh'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

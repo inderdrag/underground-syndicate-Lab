@@ -117,9 +117,9 @@ export const ProductionStepper: React.FC<ProductionStepperProps> = ({
   const activeIdx = currentIndex !== -1 ? currentIndex : 0;
 
   return (
-    <div className={`w-full bg-[#080c13] border border-white/[0.08] rounded-2xl p-3.5 shadow-md ${className}`}>
+    <div className={`w-full bg-[#080c13] border border-white/[0.08] rounded-2xl p-2.5 sm:p-3.5 shadow-md overflow-x-auto scrollbar-none ${className}`}>
       {/* Step Nodes Track */}
-      <div className="relative flex items-center justify-between">
+      <div className="relative flex items-center justify-between min-w-[380px] sm:min-w-0 px-2 sm:px-0">
         {/* Connecting Progress Line (Background) */}
         <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-1 bg-neutral-800 rounded-full z-0" />
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, FictionalMushroomColony, FictionalGrowthStage } from '../types/game';
+import { GameState, FictionalMushroomColony, FictionalGrowthStage, DrugEffectType, DosageTier, SyndicateLicenseId } from '../types/game';
 import {
   Moon,
   Droplets,
@@ -21,6 +21,12 @@ import {
   ChevronRight,
   HelpCircle,
   FlaskConical,
+  Building2,
+  DollarSign,
+  Package,
+  X,
+  ShieldAlert,
+  Lock,
 } from 'lucide-react';
 import { sounds } from '../engine/soundEffects';
 import { Language, translations } from '../i18n/translations';
@@ -33,7 +39,10 @@ interface FictionalMycologyHubProps {
   onCreateColony: (colony: FictionalMushroomColony) => void;
   onHarvestColony: (colonyId: string, yieldGrams: number) => void;
   onPackageMushrooms: (format: 'craft' | 'microdose' | 'syndicate', count: number, totalCash: number) => void;
+  onSellMushroomDeal?: (itemKey: string, units: number, totalCash: number, heat: number) => void;
+  onBuyLicense?: (licenseId: SyndicateLicenseId, cost: number) => void;
   onIngestAstral: () => void;
+  onIngestSample?: (effectType: DrugEffectType, dosage?: DosageTier) => void;
   language: Language;
 }
 
@@ -45,12 +54,16 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
   onCreateColony,
   onHarvestColony,
   onPackageMushrooms,
+  onSellMushroomDeal,
+  onBuyLicense,
   onIngestAstral,
+  onIngestSample,
   language,
 }) => {
   const t = translations[language];
-  const [activeTab, setActiveTab] = useState<'cultivation' | 'shop' | 'processing'>('cultivation');
+  const [activeTab, setActiveTab] = useState<'cultivation' | 'shop' | 'processing' | 'warehouse'>('cultivation');
   const [selectedColonyId, setSelectedColonyId] = useState<string | null>(null);
+  const hasMycologyLicense = Boolean(gameState.syndicateLicenses?.mycology_license);
 
   // Active colonies from gameState or local default
   const colonies = gameState.fictionalColonies || [];
@@ -118,6 +131,10 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
   ];
 
   const handleBuyShopItem = (item: (typeof mycoShopCatalog)[0]) => {
+    if (!hasMycologyLicense) {
+      sounds.playAlarmBeep();
+      return;
+    }
     if (gameState.cash < item.price) {
       sounds.playAlarmBeep();
       return;
@@ -238,22 +255,43 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
     setActiveTab('processing');
   };
 
-  // --- 5. PROCESSING & PACKAGING LOGIC ---
+  // --- 5. PROCESSING & PACKAGING LOGIC (BULK DRYING & REPEATABLE PACKAGING) ---
   const [dryerRunning, setDryerRunning] = useState<boolean>(false);
   const [dryerProgress, setDryerProgress] = useState<number>(0);
-  const [grinderProgress, setGrinderProgress] = useState<number>(0);
-  const [selectedPackFormat, setSelectedPackFormat] = useState<'craft' | 'microdose' | 'syndicate'>('microdose');
+  const [dryBatchGrams, setDryBatchGrams] = useState<number>(25);
+  const [dryerNotice, setDryerNotice] = useState<string | null>(null);
+
+  const [selectedPackFormat, setSelectedPackFormat] = useState<'craft' | 'microdose' | 'syndicate'>('craft');
+  const [packUnitsCount, setPackUnitsCount] = useState<number>(1);
+  const [warehouseNotice, setWarehouseNotice] = useState<string | null>(null);
+  const [packagingFeedback, setPackagingFeedback] = useState<string | null>(null);
+
+  // Dedicated tasting lab modal
+  const [isTastingModalOpen, setIsTastingModalOpen] = useState<boolean>(false);
+  const [selectedTastingDose, setSelectedTastingDose] = useState<DosageTier>('standard');
 
   const rawGramsInStock = gameState.inventory.astralMushroomsRawGrams || 0;
+  const driedGramsInStock = gameState.inventory.astralMushroomsDriedGrams || 0;
+
+  // Drying batch calculation
+  const maxDryableGrams = rawGramsInStock;
+  const currentDryBatch = Math.max(1, Math.min(dryBatchGrams, Math.max(1, maxDryableGrams)));
 
   const handleRunVacuumFreezeDryer = () => {
-    if (rawGramsInStock < 25) {
+    if (rawGramsInStock <= 0) {
       sounds.playAlarmBeep();
       return;
     }
+    const amountToDry = Math.min(currentDryBatch, rawGramsInStock);
+    if (amountToDry <= 0) {
+      sounds.playAlarmBeep();
+      return;
+    }
+
     sounds.playLabReaction();
     setDryerRunning(true);
     setDryerProgress(0);
+    setDryerNotice(null);
 
     const interval = setInterval(() => {
       setDryerProgress((prev) => {
@@ -261,6 +299,14 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
           clearInterval(interval);
           setDryerRunning(false);
           sounds.playResonanceLock();
+
+          // Transfer raw mushrooms to dried mushrooms in inventory!
+          onAddInventory('astralMushroomsRawGrams', -amountToDry);
+          onAddInventory('astralMushroomsDriedGrams', amountToDry);
+
+          setDryerNotice(
+            `✓ Сушка успешно завершена! ${amountToDry}г сырых грибов стали высушенными грибами «Астрал» (+${amountToDry}г на складе). Теперь их можно фасовать в банки и пакеты или дегустировать!`
+          );
           return 100;
         }
         return prev + 25;
@@ -268,33 +314,121 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
     }, 200);
   };
 
-  const handleFinishPackaging = () => {
-    sounds.playCash();
-    let units = 0;
-    let cashVal = 0;
-    let rawConsumed = 0;
+  // Packaging calculations (prefers dried mushrooms; falls back to raw if dried is 0)
+  const packSize = selectedPackFormat === 'craft' ? 5 : selectedPackFormat === 'microdose' ? 25 : 100;
+  const isPackingFromDried = driedGramsInStock >= packSize;
+  const packStock = isPackingFromDried ? driedGramsInStock : (driedGramsInStock > 0 ? driedGramsInStock : rawGramsInStock);
+  const maxPossiblePacks = Math.max(0, Math.floor(packStock / packSize));
+  const desiredPacks = Math.max(1, Math.min(packUnitsCount, Math.max(1, maxPossiblePacks)));
 
-    if (selectedPackFormat === 'craft') {
-      units = Math.max(1, Math.floor(rawGramsInStock / 5));
-      cashVal = units * 140;
-      rawConsumed = units * 5;
-      onPackageMushrooms('craft', units, cashVal);
-    } else if (selectedPackFormat === 'microdose') {
-      units = Math.max(1, Math.floor(rawGramsInStock / 25));
-      cashVal = units * 680;
-      rawConsumed = units * 25;
-      onPackageMushrooms('microdose', units, cashVal);
-    } else {
-      units = Math.max(1, Math.floor(rawGramsInStock / 100));
-      cashVal = units * 2850;
-      rawConsumed = units * 100;
-      onPackageMushrooms('syndicate', units, cashVal);
+  const handleFinishPackaging = () => {
+    if (packStock < packSize || maxPossiblePacks <= 0) {
+      sounds.playAlarmBeep();
+      return;
     }
 
-    onAddInventory('astralMushroomsRawGrams', -rawConsumed);
-    setDryerProgress(0);
-    setGrinderProgress(0);
+    sounds.playVacuumSeal();
+    sounds.playResonanceLock();
+
+    const actualUnits = Math.min(desiredPacks, Math.floor(packStock / packSize));
+    const consumed = actualUnits * packSize;
+    const invKey = isPackingFromDried ? 'astralMushroomsDriedGrams' : 'astralMushroomsRawGrams';
+
+    // Strictly deposit in inventory, NO CASH ADDED!
+    onPackageMushrooms(selectedPackFormat, actualUnits, 0);
+    onAddInventory(invKey, -consumed);
+
+    const packTitle =
+      selectedPackFormat === 'craft'
+        ? '5г Крафтовые пакеты «Шепот Астрала»'
+        : selectedPackFormat === 'microdose'
+        ? '25г Банки микродозинга'
+        : '100г Вакуум-боксы Синдиката';
+
+    const remaining = packStock - consumed;
+    setPackagingFeedback(
+      `✓ Партия успешно запечатана: +${actualUnits} шт. (${packTitle})! Использовано: ${consumed}г ${isPackingFromDried ? 'сушеных' : 'сырых'} грибов. На складе осталось: ${remaining}г. Вы можете сразу запечатать следующую партию!`
+    );
   };
+
+  // --- 6. WAREHOUSE & MANUAL DISTRIBUTION DESK ---
+  const [sellItemKey, setSellItemKey] = useState<'astral_raw' | 'astral_dried' | 'astral_craft' | 'astral_microdose' | 'astral_syndicate'>('astral_craft');
+  const [sellVolume, setSellVolume] = useState<number>(1);
+  const [sellChannel, setSellChannel] = useState<'clubs' | 'darknet' | 'syndicate' | 'herbalists'>('clubs');
+  const [salesFeedback, setSalesFeedback] = useState<string | null>(null);
+
+  const getMushroomStock = (key: string) => {
+    if (key === 'astral_raw') return gameState.inventory.astralMushroomsRawGrams || 0;
+    if (key === 'astral_dried') return gameState.inventory.astralMushroomsDriedGrams || 0;
+    if (key === 'astral_craft') return gameState.inventory.astralCraftPacks || 0;
+    if (key === 'astral_microdose') return gameState.inventory.astralMicrodoseJars || 0;
+    return gameState.inventory.astralSyndicateBoxes || 0;
+  };
+
+  const getMushroomUnitPrice = (key: string) => {
+    if (key === 'astral_raw') return 18;
+    if (key === 'astral_dried') return 28;
+    if (key === 'astral_craft') return 140;
+    if (key === 'astral_microdose') return 680;
+    return 2850;
+  };
+
+  const mushroomStock = getMushroomStock(sellItemKey);
+  const mushroomUnitPrice = getMushroomUnitPrice(sellItemKey);
+
+  const channelMult = sellChannel === 'syndicate' ? 1.15 : sellChannel === 'darknet' ? 1.10 : sellChannel === 'clubs' ? 1.05 : 1.0;
+  const channelHeat = sellChannel === 'syndicate' ? 2.2 : sellChannel === 'darknet' ? 1.4 : sellChannel === 'clubs' ? 1.2 : 0.8;
+
+  const actualSellVolume = Math.min(sellVolume, mushroomStock);
+  const totalMushroomPayout = Math.round(actualSellVolume * mushroomUnitPrice * channelMult);
+  const mushroomHeat = Math.max(1, Math.round(actualSellVolume * (sellItemKey === 'astral_syndicate' ? 7 : sellItemKey === 'astral_microdose' ? 3 : 0.9) * channelHeat));
+
+  const handleExecuteMushroomSale = () => {
+    if (mushroomStock <= 0 || actualSellVolume <= 0) {
+      sounds.playAlarmBeep();
+      setSalesFeedback('На складе нет достаточного количества выбранного товара!');
+      return;
+    }
+
+    if (onSellMushroomDeal) {
+      onSellMushroomDeal(sellItemKey, actualSellVolume, totalMushroomPayout, mushroomHeat);
+    } else {
+      const invKey =
+        sellItemKey === 'astral_raw'
+          ? 'astralMushroomsRawGrams'
+          : sellItemKey === 'astral_dried'
+          ? 'astralMushroomsDriedGrams'
+          : sellItemKey === 'astral_craft'
+          ? 'astralCraftPacks'
+          : sellItemKey === 'astral_microdose'
+          ? 'astralMicrodoseJars'
+          : 'astralSyndicateBoxes';
+      onAddInventory(invKey, -actualSellVolume);
+    }
+
+    sounds.playCash();
+    const itemTitle =
+      sellItemKey === 'astral_raw'
+        ? `${actualSellVolume}г сырых грибов`
+        : sellItemKey === 'astral_dried'
+        ? `${actualSellVolume}г сушеных грибов`
+        : sellItemKey === 'astral_craft'
+        ? `${actualSellVolume} шт. 5г пакетов`
+        : sellItemKey === 'astral_microdose'
+        ? `${actualSellVolume} шт. банок микродозинга`
+        : `${actualSellVolume} шт. 100г вакуум-боксов`;
+
+    setSalesFeedback(`✓ Сделка закрыта: Сбыто ${itemTitle}. Получено +$${totalMushroomPayout.toLocaleString()}. Товар списан со склада.`);
+    setSellVolume(1);
+  };
+
+  // Total valuation of all mushroom inventory
+  const totalMushroomValuation =
+    (gameState.inventory.astralMushroomsRawGrams || 0) * 18 +
+    (gameState.inventory.astralMushroomsDriedGrams || 0) * 28 +
+    (gameState.inventory.astralCraftPacks || 0) * 140 +
+    (gameState.inventory.astralMicrodoseJars || 0) * 680 +
+    (gameState.inventory.astralSyndicateBoxes || 0) * 2850;
 
   // Visual SVG Stage Illustration helper
   const renderColonyStageIllustration = (stage: FictionalGrowthStage) => {
@@ -404,18 +538,21 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
   return (
     <div className="space-y-4">
       {/* Editorial Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-white/[0.08] pb-3.5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)]">
             <Moon className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
                 [МИКОЛОГИЧЕСКИЙ СИМУЛЯТОР «АСТРАЛ»]
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
                 {colonies.length} Активных колоний
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Авто-продажа отключена (Склад)
               </span>
             </div>
             <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">
@@ -424,40 +561,123 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-[#0b0e14] p-1.5 rounded-2xl border border-white/10 text-xs font-mono">
+        {/* Real-time Astral Mushroom Stock Mini-Bar */}
+        <div className="bg-[#070b13] p-2 rounded-2xl border border-white/10 flex flex-wrap items-center gap-2 text-xs font-mono">
+          <div className="flex items-center gap-1.5 text-slate-300">
+            <Building2 className="w-4 h-4 text-cyan-400" />
+            <span className="text-[11px] text-slate-400">Склад грибов:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-cyan-300">
+              Сырые: <strong>{gameState.inventory.astralMushroomsRawGrams || 0}г</strong>
+            </span>
+            <span className="px-2 py-0.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 font-bold">
+              Сушеные: <strong>{gameState.inventory.astralMushroomsDriedGrams || 0}г</strong>
+            </span>
+            <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-emerald-300">
+              5г: <strong>{gameState.inventory.astralCraftPacks || 0}</strong>
+            </span>
+            <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-purple-300">
+              25г: <strong>{gameState.inventory.astralMicrodoseJars || 0}</strong>
+            </span>
+            <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-amber-300">
+              100г: <strong>{gameState.inventory.astralSyndicateBoxes || 0}</strong>
+            </span>
+            <span className="px-2 py-0.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-bold">
+              ${totalMushroomValuation.toLocaleString()}
+            </span>
+          </div>
+
           <button
-            onClick={() => setActiveTab('cultivation')}
-            className={`px-3 py-1 rounded-xl transition-all cursor-pointer font-bold ${
-              activeTab === 'cultivation'
-                ? 'bg-cyan-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            onClick={() => {
+              sounds.playClick();
+              setIsTastingModalOpen(true);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/30 via-pink-500/30 to-purple-500/30 hover:from-purple-500/50 hover:to-pink-500/50 text-purple-200 border border-purple-500/40 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(168,85,247,0.25)] active:scale-95 shrink-0"
           >
-            1. Культивация
-          </button>
-          <button
-            onClick={() => setActiveTab('shop')}
-            className={`px-3 py-1 rounded-xl transition-all cursor-pointer font-bold ${
-              activeTab === 'shop'
-                ? 'bg-purple-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            2. Магазин ресурсов
-          </button>
-          <button
-            onClick={() => setActiveTab('processing')}
-            className={`px-3 py-1 rounded-xl transition-all cursor-pointer font-bold ${
-              activeTab === 'processing'
-                ? 'bg-emerald-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            3. Обработка и фасовка
+            <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+            <span>Дегустировать в лаборатории</span>
           </button>
         </div>
       </div>
+
+      {/* Tab Switcher */}
+      <div className="flex flex-wrap items-center gap-1.5 bg-[#0b0e14] p-1.5 rounded-2xl border border-white/10 text-xs font-mono">
+        <button
+          onClick={() => setActiveTab('cultivation')}
+          className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold ${
+            activeTab === 'cultivation'
+              ? 'bg-cyan-500 text-slate-950 shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          1. Культивация
+        </button>
+        <button
+          onClick={() => setActiveTab('shop')}
+          className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold ${
+            activeTab === 'shop'
+              ? 'bg-purple-500 text-slate-950 shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          2. Магазин ресурсов
+        </button>
+        <button
+          onClick={() => setActiveTab('processing')}
+          className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold ${
+            activeTab === 'processing'
+              ? 'bg-emerald-500 text-slate-950 shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          3. Обработка и фасовка
+        </button>
+        <button
+          onClick={() => setActiveTab('warehouse')}
+          className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold flex items-center gap-1.5 ${
+            activeTab === 'warehouse'
+              ? 'bg-amber-500 text-slate-950 shadow-md'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>4. Склад & Ручной Сбыт</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'warehouse' ? 'bg-slate-900 text-amber-300' : 'bg-white/10 text-slate-300'}`}>
+            {(gameState.inventory.astralCraftPacks || 0) + (gameState.inventory.astralMicrodoseJars || 0) + (gameState.inventory.astralSyndicateBoxes || 0)}
+          </span>
+        </button>
+      </div>
+
+      {/* Persistent Warehouse Confirmation Notice */}
+      {warehouseNotice && (
+        <div className="p-4 bg-emerald-950/40 border-2 border-emerald-500/50 rounded-2xl text-emerald-200 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-white text-sm">Грибы зачислены в инвентарь склада!</div>
+              <div className="text-emerald-300/90 mt-0.5 leading-relaxed">{warehouseNotice}</div>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setActiveTab('warehouse');
+              setTimeout(() => {
+                const el = document.getElementById('mushroom-warehouse-section');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }, 50);
+            }}
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs shrink-0 cursor-pointer shadow-md active:scale-95 transition-all"
+          >
+            Перейти к Складу
+          </button>
+        </div>
+      )}
 
       {/* --- TAB 1: CULTIVATION & CARE --- */}
       {activeTab === 'cultivation' && (
@@ -490,11 +710,11 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Left Column: Colony List & New Colony Button */}
-              <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+              {/* Colony Selection Strip (Horizontal on mobile, vertical on desktop) */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-slate-400">Список колоний:</span>
+                  <span className="text-xs font-mono text-slate-400">Колонии ({colonies.length}):</span>
                   <button
                     onClick={handlePlantNewColony}
                     className="py-1 px-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-mono font-bold rounded-lg flex items-center gap-1 cursor-pointer"
@@ -504,7 +724,7 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                <div className="flex lg:flex-col overflow-x-auto lg:overflow-y-auto gap-2 pb-1.5 lg:pb-0 scrollbar-none lg:max-h-[520px] shrink-0">
                   {colonies.map((colony) => {
                     const isSelected = colony.id === (activeColony ? activeColony.id : null);
                     const isReady = colony.stage === 'ready_harvest';
@@ -516,22 +736,22 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
                           sounds.playClick();
                           setSelectedColonyId(colony.id);
                         }}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer space-y-2 ${
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer space-y-1.5 shrink-0 min-w-[210px] sm:min-w-[240px] lg:min-w-0 ${
                           isSelected
                             ? 'bg-[#101724] border-cyan-500 shadow-lg ring-1 ring-cyan-500/30'
                             : 'bg-[#0a0f16] border-white/10 hover:border-white/20'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-white text-xs">{colony.name}</span>
-                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-white text-xs truncate max-w-[130px]">{colony.name}</span>
+                          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border shrink-0 ${
                             colony.rarityTier === 'Мифический' ? 'text-amber-400 border-amber-500/30' : 'text-cyan-400 border-cyan-500/30'
                           }`}>
                             {colony.rarityTier}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
                           <span>Стадия: <strong className="text-cyan-300 capitalize">{colony.stage.replace('_', ' ')}</strong></span>
                           <span>{Math.round(colony.progress)}%</span>
                         </div>
@@ -675,23 +895,79 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
       {/* --- TAB 2: MYCOLOGY SHOP --- */}
       {activeTab === 'shop' && (
         <div className="bg-[#0b1017] border border-white/[0.08] rounded-2xl p-5 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-2 text-purple-400 text-sm font-bold font-mono">
               <ShoppingBag className="w-4 h-4" />
               <span>2. Магазин специализированных микологических ресурсов</span>
             </div>
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${
+                hasMycologyLicense
+                  ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300'
+                  : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+              }`}>
+                {hasMycologyLicense ? '✓ Споровый сертификат активен' : '🔒 Требуется споровый сертификат'}
+              </span>
+            </div>
           </div>
+
+          {/* License Lock Banner (Synced with Megastore) */}
+          {!hasMycologyLicense && (
+            <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shrink-0">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-bold text-amber-300 text-sm flex items-center gap-2 font-mono">
+                    <span>{language === 'ru' ? 'Требуется Споровый Сертификат (Микология)' : 'Spore Certificate Required'}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Синдикат</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                    {language === 'ru'
+                      ? 'Закупка мицелиевых наборов «Астрал», субстратов Mix-A и монотубов заблокирована без официального сертификата Синдиката.'
+                      : 'Purchasing Astral mycelium kits, Mix-A and monotubs is locked without a Spore Certificate.'}
+                  </p>
+                </div>
+              </div>
+
+              {onBuyLicense && (
+                <button
+                  onClick={() => {
+                    if (gameState.cash >= 350) {
+                      sounds.playCash();
+                      onBuyLicense('mycology_license', 350);
+                    } else {
+                      sounds.playAlarmBeep();
+                    }
+                  }}
+                  disabled={gameState.cash < 350}
+                  className={`px-4 py-2.5 rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 shrink-0 transition-all shadow-md ${
+                    gameState.cash >= 350
+                      ? 'bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 cursor-pointer active:scale-95'
+                      : 'bg-neutral-800 text-slate-500 border border-white/5 cursor-not-allowed'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>{language === 'ru' ? 'Купить сертификат ($350)' : 'Buy Certificate ($350)'}</span>
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {mycoShopCatalog.map((item) => {
               const Icon = item.icon;
               const invCount = (gameState.inventory as Record<string, number>)[item.key] || 0;
               const canAfford = gameState.cash >= item.price;
+              const canPurchase = hasMycologyLicense && canAfford;
 
               return (
                 <div
                   key={item.key}
-                  className="p-4 rounded-2xl bg-[#080c13] border border-white/10 hover:border-purple-500/40 transition-all flex flex-col justify-between space-y-3"
+                  className={`p-4 rounded-2xl bg-[#080c13] border transition-all flex flex-col justify-between space-y-3 ${
+                    hasMycologyLicense ? 'border-white/10 hover:border-purple-500/40' : 'border-white/5 opacity-70'
+                  }`}
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -721,14 +997,23 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
 
                     <button
                       onClick={() => handleBuyShopItem(item)}
-                      disabled={!canAfford}
-                      className={`py-1.5 px-3.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
-                        canAfford
-                          ? 'bg-purple-500 hover:bg-purple-400 text-slate-950 shadow-md active:scale-95'
+                      disabled={!canPurchase}
+                      className={`py-1.5 px-3.5 rounded-xl text-xs font-mono font-bold transition-all shadow-md ${
+                        canPurchase
+                          ? 'bg-purple-500 hover:bg-purple-400 text-slate-950 cursor-pointer active:scale-95'
+                          : !hasMycologyLicense
+                          ? 'bg-amber-950/40 text-amber-500 border border-amber-500/30 cursor-not-allowed'
                           : 'bg-neutral-800 text-slate-500 cursor-not-allowed'
                       }`}
                     >
-                      Купить
+                      {!hasMycologyLicense ? (
+                        <span className="flex items-center gap-1">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Нужен сертификат</span>
+                        </span>
+                      ) : (
+                        'Купить'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -741,48 +1026,153 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
       {/* --- TAB 3: PROCESSING & PACKAGING LAB --- */}
       {activeTab === 'processing' && (
         <div className="bg-[#0b1017] border border-white/[0.08] rounded-2xl p-5 space-y-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold font-mono">
               <PackageCheck className="w-4 h-4" />
               <span>3. Обработка и фасовка: Сублимационная сушка и крафт упаковок</span>
             </div>
-            <span className="text-xs font-mono text-slate-300">
-              Сырых грибов на складе: <strong className="text-cyan-400">{rawGramsInStock}г</strong>
-            </span>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+              <span className="text-slate-300">
+                Сырые: <strong className="text-cyan-400">{rawGramsInStock}г</strong>
+              </span>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">
+                Высушенные: <strong className="text-emerald-400">{driedGramsInStock}г</strong>
+              </span>
+            </div>
           </div>
 
-          {/* Freeze Dryer Section */}
-          <div className="p-4 bg-[#070a0f] rounded-2xl border border-white/10 space-y-3">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-300">Этап 1: Вакуумная сублимационная сушка (25г минимум):</span>
-              <strong className="text-cyan-400">{dryerProgress}%</strong>
+          {dryerNotice && (
+            <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-200 text-xs font-mono flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{dryerNotice}</span>
+              </div>
+              <button onClick={() => setDryerNotice(null)} className="text-slate-400 hover:text-white cursor-pointer ml-2">✕</button>
+            </div>
+          )}
+
+          {/* Freeze Dryer Section (Bulk Drying) */}
+          <div className="p-4 bg-[#070a0f] rounded-2xl border border-white/10 space-y-3 font-mono">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+              <span className="text-cyan-300 font-bold flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Этап 1: Вакуумная сублимационная сушка (Сырые → Высушенные)</span>
+              </span>
+              <div className="flex items-center gap-2 text-slate-400 text-[11px]">
+                <span>Конденсатор: -55°C</span>
+                <span>•</span>
+                <span>Вакуум: 0.04 мбар</span>
+                <span>•</span>
+                <strong className="text-cyan-400">{dryerProgress}%</strong>
+              </div>
             </div>
 
             <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden border border-white/10">
               <div
-                className="h-full bg-cyan-400 transition-all duration-200"
+                className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 transition-all duration-200"
                 style={{ width: `${dryerProgress}%` }}
               />
             </div>
 
+            {/* Batch Amount Selection for Drying */}
+            <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5 space-y-2 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <span className="text-slate-300 font-bold">Объем партии для сушки:</span>
+                <span className="text-cyan-400 font-bold">
+                  {currentDryBatch}г сырых → {currentDryBatch}г сублимированных высушенных
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="5"
+                  max={Math.max(5, rawGramsInStock)}
+                  value={currentDryBatch}
+                  onChange={(e) => setDryBatchGrams(Number(e.target.value))}
+                  disabled={dryerRunning || rawGramsInStock <= 0}
+                  className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-950 rounded"
+                />
+                <button
+                  onClick={() => setDryBatchGrams(25)}
+                  disabled={dryerRunning || rawGramsInStock < 25}
+                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded text-[10px] font-bold"
+                >
+                  25г
+                </button>
+                <button
+                  onClick={() => setDryBatchGrams(50)}
+                  disabled={dryerRunning || rawGramsInStock < 50}
+                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded text-[10px] font-bold"
+                >
+                  50г
+                </button>
+                <button
+                  onClick={() => setDryBatchGrams(100)}
+                  disabled={dryerRunning || rawGramsInStock < 100}
+                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded text-[10px] font-bold"
+                >
+                  100г
+                </button>
+                <button
+                  onClick={() => setDryBatchGrams(rawGramsInStock)}
+                  disabled={dryerRunning || rawGramsInStock <= 0}
+                  className="px-2 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded text-[10px] font-bold"
+                >
+                  MAX ({rawGramsInStock}г)
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={handleRunVacuumFreezeDryer}
-              disabled={dryerRunning || rawGramsInStock < 25}
-              className={`w-full py-2.5 rounded-xl font-bold font-mono text-xs cursor-pointer active:scale-98 transition-all ${
-                rawGramsInStock >= 25
-                  ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md'
+              disabled={dryerRunning || rawGramsInStock <= 0}
+              className={`w-full py-3 rounded-xl font-bold font-mono text-xs cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-2 shadow-lg ${
+                rawGramsInStock > 0 && !dryerRunning
+                  ? 'bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 shadow-cyan-500/20'
                   : 'bg-neutral-800 text-slate-500 cursor-not-allowed'
               }`}
             >
-              {dryerRunning ? 'Идет сублимационная сушка...' : 'Запустить вакуумную сушку партии'}
+              <RotateCcw className={`w-3.5 h-3.5 ${dryerRunning ? 'animate-spin' : ''}`} />
+              <span>
+                {dryerRunning
+                  ? `Идет вакуумная сублимационная сушка (${dryerProgress}%)...`
+                  : rawGramsInStock > 0
+                  ? `Запустить сушку партии (${currentDryBatch}г сырых грибов)`
+                  : 'Нет сырых грибов для сушки (соберите урожай в Культивации)'}
+              </span>
             </button>
           </div>
 
           {/* Packaging Formats Grid */}
-          <div className="space-y-3">
-            <div className="text-xs font-mono text-slate-300">
-              Этап 2: Выберите формат готовой продукции для сбыта:
+          <div className="space-y-3 font-mono">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+              <span className="text-emerald-400 font-bold">
+                Этап 2: Расфасовка в банки и пакеты (можно повторять несколько раз):
+              </span>
+              <span className="text-slate-300 text-[11px]">
+                Доступно для фасовки:{' '}
+                <strong className={isPackingFromDried ? 'text-emerald-400' : 'text-cyan-400'}>
+                  {packStock}г {isPackingFromDried ? '(Высушенные грибы)' : '(Сырые грибы)'}
+                </strong>
+              </span>
             </div>
+
+            {packagingFeedback && (
+              <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span>{packagingFeedback}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveTab('warehouse')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer"
+                  >
+                    Смотреть на складе ➔
+                  </button>
+                  <button onClick={() => setPackagingFeedback(null)} className="text-slate-400 hover:text-white cursor-pointer">✕</button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
@@ -790,22 +1180,25 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
                   id: 'craft',
                   nameRu: '5г Крафтовые пакеты «Шепот Астрала»',
                   desc: 'Розничный фасованный продукт для уличных клубов.',
-                  price: '$140 / пакет',
                   badge: 'Розница (5г)',
+                  ratioText: '5г высушенных → 1 пакет',
+                  estValue: 'Оценка: ~$140 / шт.',
                 },
                 {
                   id: 'microdose',
                   nameRu: '25г Банки микродозинга',
                   desc: 'Стандарт премиум-капсул в Darknet сети.',
-                  price: '$680 / банка',
                   badge: 'Darknet (25г)',
+                  ratioText: '25г высушенных → 1 банка',
+                  estValue: 'Оценка: ~$680 / шт.',
                 },
                 {
                   id: 'syndicate',
                   nameRu: '100г Вакуум-боксы Синдиката',
                   desc: 'Оптовые партии для картельных контрактов.',
-                  price: '$2,850 / бокс',
                   badge: 'Опт (100г)',
+                  ratioText: '100г высушенных → 1 бокс',
+                  estValue: 'Оценка: ~$2,850 / шт.',
                 },
               ].map((fmt) => (
                 <div
@@ -821,7 +1214,7 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold">
                       {fmt.badge}
                     </span>
                     {selectedPackFormat === fmt.id && (
@@ -832,24 +1225,542 @@ export const FictionalMycologyHub: React.FC<FictionalMycologyHubProps> = ({
                   <div>
                     <h3 className="font-bold text-white text-sm">{fmt.nameRu}</h3>
                     <p className="text-xs text-slate-400 mt-1 leading-relaxed">{fmt.desc}</p>
-                    <div className="text-xs font-mono font-bold text-emerald-400 mt-2">{fmt.price}</div>
+                    <div className="text-[11px] font-mono text-cyan-300 mt-2 font-bold">{fmt.ratioText}</div>
+                    <div className="text-xs font-mono font-bold text-emerald-400 mt-0.5">{fmt.estValue}</div>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Packaging Quantity & Consumption Slider */}
+            <div className="p-3.5 bg-slate-900/60 rounded-xl border border-white/5 space-y-3 font-mono text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <span className="text-slate-300 font-bold">Объем фасуемой партии:</span>
+                <span className="text-emerald-400 font-bold text-sm">
+                  {desiredPacks} шт. (из {maxPossiblePacks} макс. доступных)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="1"
+                  max={Math.max(1, maxPossiblePacks)}
+                  value={desiredPacks}
+                  onChange={(e) => setPackUnitsCount(Number(e.target.value))}
+                  disabled={maxPossiblePacks <= 0}
+                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-950 rounded"
+                />
+                <button
+                  onClick={() => setPackUnitsCount(1)}
+                  disabled={maxPossiblePacks <= 0}
+                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded text-[10px] font-bold"
+                >
+                  1 шт.
+                </button>
+                <button
+                  onClick={() => setPackUnitsCount(Math.min(5, maxPossiblePacks))}
+                  disabled={maxPossiblePacks < 5}
+                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded text-[10px] font-bold"
+                >
+                  5 шт.
+                </button>
+                <button
+                  onClick={() => setPackUnitsCount(Math.min(10, maxPossiblePacks))}
+                  disabled={maxPossiblePacks < 10}
+                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded text-[10px] font-bold"
+                >
+                  10 шт.
+                </button>
+                <button
+                  onClick={() => setPackUnitsCount(maxPossiblePacks)}
+                  disabled={maxPossiblePacks <= 0}
+                  className="px-2 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded text-[10px] font-bold"
+                >
+                  MAX ({maxPossiblePacks})
+                </button>
+              </div>
+
+              <div className="flex justify-between text-[11px] text-slate-400 pt-1 border-t border-white/5">
+                <span>Будет израсходовано грибов:</span>
+                <strong className="text-cyan-300">
+                  {desiredPacks * packSize}г из {packStock}г доступных
+                </strong>
+              </div>
+            </div>
+
+            {/* Warehouse Rule Notice */}
+            <div className="p-3 bg-cyan-950/30 border border-cyan-500/30 rounded-xl text-cyan-200 text-xs flex items-center justify-between gap-2 font-mono">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>
+                  <strong>Повторная фасовка:</strong> Вы можете запечатывать продукцию несколько раз подряд. Готовый товар отправляется в инвентарь склада.
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  setIsTastingModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-[11px] font-bold shrink-0 cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Дегустировать</span>
+              </button>
+            </div>
+
             <button
               onClick={handleFinishPackaging}
-              disabled={rawGramsInStock < 5}
-              className={`w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xl transition-all ${
-                rawGramsInStock >= 5
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 animate-bounce'
+              disabled={packStock < packSize || maxPossiblePacks <= 0}
+              className={`w-full py-4 rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xl transition-all ${
+                packStock >= packSize && maxPossiblePacks > 0
+                  ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-emerald-500/25'
                   : 'bg-neutral-800 text-slate-500 cursor-not-allowed'
               }`}
             >
               <PackageCheck className="w-4 h-4" />
-              <span>Расфасовать партию и поместить на склад (в инвентарь)</span>
+              <span>Запечатать {desiredPacks} шт. в инвентарь склада (можно несколько раз)</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- TAB 4: WAREHOUSE & DIRECT SALES TERMINAL --- */}
+      {activeTab === 'warehouse' && (
+        <div id="mushroom-warehouse-section" className="bg-[#0b1017] border border-white/[0.08] rounded-2xl p-5 space-y-5 shadow-xl scroll-mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+            <div className="flex items-center gap-2 text-amber-400 text-sm font-bold font-mono">
+              <Building2 className="w-4 h-4" />
+              <span>4. Склад урожая «Астрал» & Терминал ручного сбыта</span>
+            </div>
+            <span className="text-xs font-mono text-emerald-400 font-bold">
+              Общая оценка склада грибов: ${totalMushroomValuation.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Current Stock Inventory Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="p-3.5 bg-[#070a0f] rounded-2xl border border-white/10 space-y-1.5 font-mono">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Сырой сбор «Астрал»</div>
+              <div className="text-xl font-bold text-white flex items-center justify-between">
+                <span>{gameState.inventory.astralMushroomsRawGrams || 0}г</span>
+                <span className="text-xs font-normal text-cyan-400">~$18/г</span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-white/5">
+                <span>Оценка:</span>
+                <strong className="text-emerald-400">${((gameState.inventory.astralMushroomsRawGrams || 0) * 18).toLocaleString()}</strong>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-[#070a0f] rounded-2xl border border-cyan-500/30 space-y-1.5 font-mono shadow-[0_0_15px_rgba(6,182,212,0.15)]">
+              <div className="text-[10px] text-cyan-300 uppercase tracking-wider font-bold">Высушенные «Астрал»</div>
+              <div className="text-xl font-bold text-cyan-200 flex items-center justify-between">
+                <span>{gameState.inventory.astralMushroomsDriedGrams || 0}г</span>
+                <span className="text-xs font-normal text-cyan-400">~$28/г</span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-white/5">
+                <span>Оценка:</span>
+                <strong className="text-emerald-400">${((gameState.inventory.astralMushroomsDriedGrams || 0) * 28).toLocaleString()}</strong>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-[#070a0f] rounded-2xl border border-white/10 space-y-1.5 font-mono">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">5г Пакеты «Шепот Астрала»</div>
+              <div className="text-xl font-bold text-white flex items-center justify-between">
+                <span>{gameState.inventory.astralCraftPacks || 0} шт.</span>
+                <span className="text-xs font-normal text-emerald-400">~$140/шт.</span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-white/5">
+                <span>Оценка:</span>
+                <strong className="text-emerald-400">${((gameState.inventory.astralCraftPacks || 0) * 140).toLocaleString()}</strong>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-[#070a0f] rounded-2xl border border-white/10 space-y-1.5 font-mono">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">25г Банки микродозинга</div>
+              <div className="text-xl font-bold text-white flex items-center justify-between">
+                <span>{gameState.inventory.astralMicrodoseJars || 0} шт.</span>
+                <span className="text-xs font-normal text-purple-400">~$680/шт.</span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-white/5">
+                <span>Оценка:</span>
+                <strong className="text-emerald-400">${((gameState.inventory.astralMicrodoseJars || 0) * 680).toLocaleString()}</strong>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-[#070a0f] rounded-2xl border border-white/10 space-y-1.5 font-mono">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">100г Вакуум-боксы</div>
+              <div className="text-xl font-bold text-white flex items-center justify-between">
+                <span>{gameState.inventory.astralSyndicateBoxes || 0} шт.</span>
+                <span className="text-xs font-normal text-amber-400">~$2,850/шт.</span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-white/5">
+                <span>Оценка:</span>
+                <strong className="text-emerald-400">${((gameState.inventory.astralSyndicateBoxes || 0) * 2850).toLocaleString()}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Manual Sales Desk */}
+          <div className="p-5 bg-[#070a0f] rounded-2xl border border-white/10 space-y-4 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span>Терминал ручного сбыта грибного урожая</span>
+              </h3>
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  setIsTastingModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(168,85,247,0.2)]"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                <span>Дегустировать в лаборатории</span>
+              </button>
+            </div>
+
+            {salesFeedback && (
+              <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-200 text-xs font-bold flex items-center justify-between">
+                <span>{salesFeedback}</span>
+                <button onClick={() => setSalesFeedback(null)} className="text-slate-400 hover:text-white cursor-pointer">✕</button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Product Selector */}
+              <div className="space-y-1.5">
+                <label className="text-slate-300 font-bold block">1. Выберите продукцию:</label>
+                <select
+                  value={sellItemKey}
+                  onChange={(e) => {
+                    setSellItemKey(e.target.value as any);
+                    setSellVolume(1);
+                  }}
+                  className="w-full bg-[#121824] border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none cursor-pointer"
+                >
+                  <option value="astral_raw">
+                    Сырые неоновые грибы ({gameState.inventory.astralMushroomsRawGrams || 0}г)
+                  </option>
+                  <option value="astral_dried">
+                    Сублимированные высушенные грибы ({gameState.inventory.astralMushroomsDriedGrams || 0}г)
+                  </option>
+                  <option value="astral_craft">
+                    5г Крафтовые пакеты «Шепот Астрала» ({gameState.inventory.astralCraftPacks || 0} шт.)
+                  </option>
+                  <option value="astral_microdose">
+                    25г Банки микродозинга ({gameState.inventory.astralMicrodoseJars || 0} шт.)
+                  </option>
+                  <option value="astral_syndicate">
+                    100г Вакуум-боксы Синдиката ({gameState.inventory.astralSyndicateBoxes || 0} шт.)
+                  </option>
+                </select>
+              </div>
+
+              {/* Buyer Channel Selector */}
+              <div className="space-y-1.5">
+                <label className="text-slate-300 font-bold block">2. Канал сбыта / Клиентура:</label>
+                <select
+                  value={sellChannel}
+                  onChange={(e) => setSellChannel(e.target.value as any)}
+                  className="w-full bg-[#121824] border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none cursor-pointer"
+                >
+                  <option value="clubs">Неоновые рейвы & клубы (+5% бонус, средний риск)</option>
+                  <option value="darknet">Darknet микродозинг комьюнити (+10% бонус)</option>
+                  <option value="syndicate">Психоделический синдикат (+15% бонус, опт)</option>
+                  <option value="herbalists">Местные травники (базовая цена, минимальный риск)</option>
+                </select>
+              </div>
+
+              {/* Quantity Selector */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-slate-300 font-bold">
+                  <span>3. Объем партии:</span>
+                  <span className="text-emerald-400 font-bold">{actualSellVolume} {sellItemKey === 'astral_raw' ? 'г' : 'шт.'} (из {mushroomStock})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="1"
+                    max={Math.max(1, mushroomStock)}
+                    value={sellVolume}
+                    onChange={(e) => setSellVolume(Number(e.target.value))}
+                    disabled={mushroomStock <= 0}
+                    className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-900 rounded"
+                  />
+                  <button
+                    onClick={() => setSellVolume(mushroomStock)}
+                    disabled={mushroomStock <= 0}
+                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-[10px] font-bold shrink-0 cursor-pointer"
+                  >
+                    MAX
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Pricing & Execution Bar */}
+            <div className="p-4 bg-slate-900/60 rounded-xl border border-white/5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-slate-400 text-[11px]">Цена за единицу:</span>
+                <div className="font-bold text-white text-sm">
+                  ${Math.round(mushroomUnitPrice * channelMult).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-400 text-[11px]">Выручка от сделки:</span>
+                <div className="font-bold text-emerald-400 text-base">
+                  +${totalMushroomPayout.toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-400 text-[11px]">Внимание полиции:</span>
+                <div className="font-bold text-amber-400 text-sm">
+                  +{mushroomHeat} жара
+                </div>
+              </div>
+
+              <button
+                onClick={handleExecuteMushroomSale}
+                disabled={mushroomStock <= 0}
+                className={`py-3 px-6 rounded-xl font-bold text-xs cursor-pointer transition-all active:scale-95 shadow-md ${
+                  mushroomStock > 0
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 hover:from-emerald-400 hover:to-teal-300'
+                    : 'bg-neutral-800 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                Сбыть выбранную партию (${totalMushroomPayout.toLocaleString()})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ASTRAL MUSHROOM TASTING LAB MODAL --- */}
+      {isTastingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-[#0b0e14] border border-purple-500/30 rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto font-mono text-xs">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                  <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
+                    <span>Дегустация в лаборатории: Неоновые грибы «Астрал»</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold">
+                      Психоделический трип
+                    </span>
+                  </h2>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Эффект вызывает мощную эйфорию, фрактальные галлюцинации и накопление зависимости. Выберите дозировку:
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  setIsTastingModalOpen(false);
+                }}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white flex items-center justify-center text-sm transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Live Inventory Stock Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-slate-900/60 rounded-xl border border-white/10">
+              <div>
+                <span className="text-[10px] text-slate-400 block">Высушенные:</span>
+                <strong className="text-emerald-400 text-sm">{driedGramsInStock}г</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block">Сырой сбор:</span>
+                <strong className="text-cyan-400 text-sm">{rawGramsInStock}г</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block">Крафтовые пакеты:</span>
+                <strong className="text-purple-300 text-sm">{gameState.inventory.astralCraftPacks || 0} шт.</strong>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block">Уровень зависимости:</span>
+                <strong className="text-amber-400 text-sm">{gameState.addictionLevel || 0}%</strong>
+              </div>
+            </div>
+
+            {/* Dose Selection Cards */}
+            <div className="space-y-2.5">
+              <div className="text-slate-300 font-bold text-xs">
+                Выберите дозировку дегустации:
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  {
+                    tier: 'micro' as DosageTier,
+                    title: '1. Микродоза «Нейро-Ясность»',
+                    costDried: 0.25,
+                    costRaw: 2.5,
+                    durationText: '55 сек',
+                    euphoria: 35,
+                    hallucinations: 20,
+                    addiction: 2,
+                    desc: 'Мягкий серотониновый подъем, кристальная ясность мысли и повышение креативности.',
+                    visuals: 'Нежное неоновое свечение контуров и сочность цветового спектра.',
+                    color: 'border-cyan-500/40 hover:border-cyan-400',
+                    activeColor: 'bg-cyan-950/40 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)]',
+                  },
+                  {
+                    tier: 'standard' as DosageTier,
+                    title: '2. Терапевтический «Астральный Поток»',
+                    costDried: 1.5,
+                    costRaw: 15.0,
+                    durationText: '80 сек',
+                    euphoria: 70,
+                    hallucinations: 60,
+                    addiction: 8,
+                    desc: 'Глубокие волны тепла по телу, эмоциональный подъем, снятие тревоги и внутренний покой.',
+                    visuals: 'Волнообразное дыхание стен, плавающие биолюминесцентные споры, мягкий RGB-сплит.',
+                    color: 'border-teal-500/40 hover:border-teal-400',
+                    activeColor: 'bg-teal-950/40 border-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.25)]',
+                  },
+                  {
+                    tier: 'high' as DosageTier,
+                    title: '3. Шаманский Трип «Разрыв Реальности»',
+                    costDried: 3.5,
+                    costRaw: 35.0,
+                    durationText: '120 сек',
+                    euphoria: 95,
+                    hallucinations: 90,
+                    addiction: 18,
+                    desc: 'Мощнейший экстатический раш, безграничное счастье, единство с мицелием и миром.',
+                    visuals: 'Жидкое плавление интерфейса, спиральные фрактальные волны, синестезия звуков.',
+                    color: 'border-purple-500/40 hover:border-purple-400',
+                    activeColor: 'bg-purple-950/40 border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)]',
+                  },
+                  {
+                    tier: 'heroic' as DosageTier,
+                    title: '4. Сингулярность «Heroic Ego Death»',
+                    costDried: 6.0,
+                    costRaw: 60.0,
+                    durationText: '180 сек',
+                    euphoria: 100,
+                    hallucinations: 100,
+                    addiction: 32,
+                    desc: 'Запредельный космический катарсис, полное растворение границ «я» и времени.',
+                    visuals: 'Психоделический гиперпространственный туннель, сакральная геометрия, смена спектров.',
+                    color: 'border-pink-500/40 hover:border-pink-400',
+                    activeColor: 'bg-pink-950/40 border-pink-400 shadow-[0_0_20px_rgba(236,72,153,0.35)]',
+                  },
+                ].map((item) => {
+                  const isSelected = selectedTastingDose === item.tier;
+                  const hasDried = driedGramsInStock >= item.costDried;
+                  const hasRaw = rawGramsInStock >= item.costRaw;
+                  const hasAny = driedGramsInStock > 0 || rawGramsInStock > 0;
+
+                  return (
+                    <div
+                      key={item.tier}
+                      onClick={() => {
+                        sounds.playClick();
+                        setSelectedTastingDose(item.tier);
+                      }}
+                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all space-y-2.5 ${
+                        isSelected ? item.activeColor : `bg-[#070b12] ${item.color}`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold text-white text-xs">{item.title}</div>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                      </div>
+
+                      <div className="text-[11px] text-slate-300 leading-relaxed font-sans">
+                        {item.desc}
+                      </div>
+
+                      {/* Visual & Euphoria telemetry */}
+                      <div className="space-y-1.5 pt-1 border-t border-white/5">
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-emerald-400 font-bold">Эйфория:</span>
+                          <span className="text-emerald-300 font-bold">{item.euphoria}%</span>
+                        </div>
+                        <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-white/10">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400"
+                            style={{ width: `${item.euphoria}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-purple-400 font-bold">Галлюцинации:</span>
+                          <span className="text-purple-300 font-bold">{item.hallucinations}%</span>
+                        </div>
+                        <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-white/10">
+                          <div
+                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                            style={{ width: `${item.hallucinations}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-amber-400 font-bold">Зависимость:</span>
+                          <span className="text-amber-300 font-bold">+{item.addiction}%</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-white/5">
+                        <span>Расход: {item.costDried}г сушеных (или {item.costRaw}г сырых)</span>
+                        <span className="text-cyan-300 font-bold">{item.durationText}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Execute Button */}
+            <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-[11px] text-slate-400">
+                {driedGramsInStock > 0 ? (
+                  <span>
+                    Будет списано из запаса <strong className="text-emerald-400">высушенных грибов</strong>.
+                  </span>
+                ) : rawGramsInStock > 0 ? (
+                  <span>
+                    Будет списано из запаса <strong className="text-cyan-400">сырого урожая</strong>.
+                  </span>
+                ) : (
+                  <span className="text-rose-400 font-bold">
+                    Внимание: На складе нет грибов для дегустации. Соберите или высушите урожай!
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  sounds.playLabReaction();
+                  sounds.playSubstanceIngest('psilocybin');
+                  if (onIngestSample) {
+                    onIngestSample('astral_mushrooms', selectedTastingDose);
+                  } else {
+                    onIngestAstral();
+                  }
+                  setIsTastingModalOpen(false);
+                }}
+                disabled={driedGramsInStock <= 0 && rawGramsInStock <= 0 && (gameState.inventory.astralCraftPacks || 0) <= 0}
+                className={`py-3 px-6 rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xl transition-all ${
+                  driedGramsInStock > 0 || rawGramsInStock > 0 || (gameState.inventory.astralCraftPacks || 0) > 0
+                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 hover:from-purple-400 hover:to-pink-400 text-white shadow-purple-500/25'
+                    : 'bg-neutral-800 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" />
+                <span>Принять дозу и начать трип-дегустацию</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
