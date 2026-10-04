@@ -439,22 +439,22 @@ export const SampleModal: React.FC<SampleModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
-      <div className="bg-[#0b0e14] border border-white/10 rounded-2xl max-w-5xl w-full p-4 sm:p-6 space-y-5 shadow-2xl relative max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md">
+      <div className="bg-[#0b0e14] border border-white/10 rounded-2xl max-w-5xl w-full p-3.5 sm:p-6 space-y-4 sm:space-y-5 shadow-2xl relative max-h-[96dvh] sm:max-h-[94vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
+              <h2 className="text-sm sm:text-lg font-bold text-white tracking-wide">
                 {language === 'ru' ? 'Тестирование & Дегустация всех веществ' : 'Substance Sampling & Shader Test Bench'}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 line-clamp-1 sm:line-clamp-none">
                 {language === 'ru'
-                  ? 'Каждое вещество активирует уникальный шейдер (стимуляторы, психоделики, а также 🤢 тошнотворные эффекты вертиго).'
-                  : 'Experience live visual post-processing shaders for every compound, including stims, psychedelics, and sickening vertigo.'}
+                  ? 'Каждое вещество активирует уникальный шейдер (стимуляторы, психоделики, тошнотворные эффекты).'
+                  : 'Experience live visual post-processing shaders for every compound, including stims and psychedelics.'}
               </p>
             </div>
           </div>
@@ -463,17 +463,18 @@ export const SampleModal: React.FC<SampleModalProps> = ({
               sounds.playClick();
               onClose();
             }}
-            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white flex items-center justify-center text-sm transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white flex items-center justify-center text-sm transition-colors cursor-pointer min-h-[44px] min-w-[44px] shrink-0"
+            aria-label="Закрыть"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Category Navigation Strip */}
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0 bg-white/[0.03] p-1.5 rounded-xl border border-white/5">
+        <div className="flex items-center gap-1.5 shrink-0 bg-white/[0.03] p-1.5 rounded-xl border border-white/5 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveCategory('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap min-h-[38px] ${
               activeCategory === 'all'
                 ? 'bg-white/20 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
@@ -483,29 +484,29 @@ export const SampleModal: React.FC<SampleModalProps> = ({
           </button>
           <button
             onClick={() => setActiveCategory('stimulants')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap min-h-[38px] ${
               activeCategory === 'stimulants'
                 ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>{language === 'ru' ? 'Стимуляторы & Скорость' : 'Stimulants'}</span>
+            <span>{language === 'ru' ? 'Стимуляторы' : 'Stimulants'}</span>
           </button>
           <button
             onClick={() => setActiveCategory('psychedelics')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap min-h-[38px] ${
               activeCategory === 'psychedelics'
                 ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>{language === 'ru' ? 'Психоделики & Синтез' : 'Psychedelics'}</span>
+            <span>{language === 'ru' ? 'Психоделики' : 'Psychedelics'}</span>
           </button>
           <button
             onClick={() => setActiveCategory('botany')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap min-h-[38px] ${
               activeCategory === 'botany'
                 ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
                 : 'text-slate-400 hover:text-slate-200'
@@ -590,7 +591,7 @@ export const SampleModal: React.FC<SampleModalProps> = ({
                   <div className="text-[10px] font-mono text-slate-400 uppercase font-semibold">
                     {language === 'ru' ? 'Выберите дозировку:' : 'Select Dosage Tier:'}
                   </div>
-                  <div className="grid grid-cols-4 gap-1 text-[10px] font-mono">
+                  <div className="grid grid-cols-4 gap-1.5 text-[10px] font-mono">
                     {substance.dosageOptions.map((opt) => (
                       <button
                         key={opt.tier}
@@ -598,7 +599,7 @@ export const SampleModal: React.FC<SampleModalProps> = ({
                           sounds.playClick();
                           setSelectedDosage((prev) => ({ ...prev, [substance.type]: opt.tier }));
                         }}
-                        className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer ${
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer min-h-[42px] flex flex-col justify-center active:scale-95 ${
                           currentDosage === opt.tier
                             ? 'bg-white/20 border-white/60 text-white font-bold shadow-sm'
                             : 'bg-black/30 border-white/5 text-slate-400 hover:text-slate-200'
@@ -620,7 +621,7 @@ export const SampleModal: React.FC<SampleModalProps> = ({
                     onClose();
                   }}
                   disabled={!hasStock}
-                  className={`w-full mt-1 py-2.5 px-3 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${
+                  className={`w-full mt-1 py-3 px-3 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-md min-h-[46px] ${
                     !hasStock
                       ? 'bg-slate-900/80 border border-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                       : substance.isSickening
