@@ -144,6 +144,7 @@ export const INITIAL_GAME_STATE: GameState = {
     powder_license: false,
     neuro_license: false,
     facility_license: false,
+    pharma_license: false,
   },
   courierStats: {
     successfulDrops: 0,

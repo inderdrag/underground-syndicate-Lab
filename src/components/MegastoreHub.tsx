@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, SyndicateLicenseId } from '../types/game';
+import { MEGASTORE_ITEMS } from '../data/megastore_catalog';
 import {
   ShoppingBag,
   Leaf,
@@ -335,6 +336,24 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
       icon: Boxes,
       requiredLicense: 'pharma_license',
     },
+
+    // --- Dynamic Catalog Items from MEGASTORE_ITEMS ---
+    ...MEGASTORE_ITEMS.map(item => ({
+      id: item.id,
+      itemKey: item.id,
+      nameRu: item.name,
+      nameEn: item.name,
+      category: 'pharma' as StoreCategory,
+      categoryLabelRu: 'Аптека',
+      pricePerUnit: item.unitPrice * item.packSize,
+      unitPackSize: item.packSize,
+      unitLabel: `${item.packSize} ед.`,
+      descRu: item.description,
+      rarity: (item.unitPrice > 100 ? 'Элитный' : item.unitPrice > 30 ? 'Редкий' : item.unitPrice > 10 ? 'Необычный' : 'Обычный') as 'Обычный' | 'Необычный' | 'Редкий' | 'Элитный',
+      rarityColor: item.unitPrice > 100 ? 'text-amber-400 border-amber-500/40' : item.unitPrice > 30 ? 'text-purple-400 border-purple-500/30' : 'text-cyan-400 border-cyan-500/30',
+      icon: Package,
+      requiredLicense: item.licenseRequired as SyndicateLicenseId
+    })),
 
     // --- MYCOLOGY ---
     {

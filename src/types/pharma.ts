@@ -3,7 +3,19 @@
  * Standalone module configuration for Pharmaceutical Substances
  */
 
-export type PharmaSubgroup = 'opioids' | 'benzodiazepines' | 'gabapentinoids' | 'antidepressants';
+export type PharmaSubgroup =
+  | 'otc'
+  | 'analgesics'
+  | 'antispasmodics'
+  | 'antihistamines'
+  | 'sorbents'
+  | 'vitamins'
+  | 'gabapentinoids'
+  | 'antidepressants'
+  | 'opioids'
+  | 'benzodiazepines'
+  | 'digestive'
+  | 'nootropics';
 export type PharmaForm = 'syrup' | 'pills' | 'powder';
 export type PharmaStationId = 'lab_bench' | 'mixer' | 'tablet_press' | 'packaging_table';
 

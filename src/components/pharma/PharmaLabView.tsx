@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { pharmaPackConfig } from '../../config/pharmaPackData';
+import { PHARMA_DRUGS_CATALOG, PharmaDrugRecipe } from '../../data/pharma_recipes_config';
+import { PharmaCraftingMiniGames, PharmaCraftBatchOutcome } from '../minigames/PharmaCraftingMiniGames';
 import { PharmaItemDef, PharmaSubgroup, PharmaCraftBatchResult, PharmaGameState, PharmaStash } from '../../types/pharma';
 import { processCraftingMiniGame } from '../../services/pharmaEngine';
 import { PharmaProductBox } from './PharmaProductBox';
@@ -20,20 +22,54 @@ import {
   X
 } from 'lucide-react';
 
+import { GameState } from '../../types/game';
+
 interface PharmaLabViewProps {
+  gameState?: GameState;
   pharmaState: PharmaGameState;
   onUpdatePharmaState: (updater: (prev: PharmaGameState) => PharmaGameState) => void;
   onAddCash: (amount: number) => void;
   onAddHeat: (heat: number) => void;
+  onDeductInventory?: (itemKey: string, amount: number) => void;
   playerLevel?: number;
   playerReputation?: number;
 }
 
+export function getIngredientStock(
+  ingredientId: string,
+  gameState?: GameState,
+  pharmaState?: PharmaGameState
+): number {
+  const gInv = (gameState?.inventory || {}) as Record<string, number>;
+  const pInv = (pharmaState?.inventory || {}) as Record<string, number>;
+
+  const getVal = (k: string) => (gInv[k] || 0) + (pInv[k] || 0);
+
+  let amount = getVal(ingredientId);
+
+  // Fallbacks for base/catalyst/packaging
+  if (ingredientId.includes('base') || ingredientId.includes('willow') || ingredientId.includes('charred') || ingredientId.includes('spasmo') || ingredientId.includes('citrus') || ingredientId.includes('moonflower') || ingredientId.includes('neuro') || ingredientId.includes('alba') || ingredientId.includes('sero') || ingredientId.includes('analga') || ingredientId.includes('somna') || ingredientId.includes('tranqui') || ingredientId.includes('vigil') || ingredientId.includes('focus') || ingredientId.includes('resin') || ingredientId.includes('stim') || ingredientId.includes('synth')) {
+    amount += getVal('pharmaBase') + getVal('pharma_base') + getVal('pharma_base_extract') + getVal('base');
+  }
+
+  if (ingredientId.includes('cat') || ingredientId.includes('buffer') || ingredientId.includes('activator') || ingredientId.includes('module') || ingredientId.includes('solvent') || ingredientId.includes('sorbent') || ingredientId.includes('binder') || ingredientId.includes('catalyst')) {
+    amount += getVal('pharmaCatalyst') + getVal('pharma_catalyst') + getVal('pharma_binder') + getVal('pharma_solvent') + getVal('pharma_stabilizer') + getVal('catalyst');
+  }
+
+  if (ingredientId.includes('pack') || ingredientId.includes('blister') || ingredientId.includes('strip') || ingredientId.includes('foil') || ingredientId.includes('tubus') || ingredientId.includes('jar') || ingredientId.includes('pkg') || ingredientId.includes('packaging')) {
+    amount += getVal('pharmaPackaging') + getVal('pharma_packaging') + getVal('packaging');
+  }
+
+  return amount;
+}
+
 export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
+  gameState,
   pharmaState,
   onUpdatePharmaState,
   onAddCash,
   onAddHeat,
+  onDeductInventory,
   playerLevel = 2,
   playerReputation = 35
 }) => {
@@ -71,9 +107,9 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
   const handleStartCraft = () => {
     if (!selectedItem) return;
 
-    // Check ingredients
+    // Check ingredients using getIngredientStock
     const reqIngredients = selectedItem.recipe.ingredients;
-    const missing = reqIngredients.find(req => (pharmaState.inventory[req.ingredientId] || 0) < req.amount);
+    const missing = reqIngredients.find(req => getIngredientStock(req.ingredientId, gameState, pharmaState) < req.amount);
 
     if (missing) {
       alert(`Недостаточно ингредиента: ${missing.ingredientId} (требуется ${missing.amount})`);
@@ -95,7 +131,12 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
       onUpdatePharmaState(prev => {
         const nextInv = { ...prev.inventory };
         reqIngredients.forEach(req => {
-          nextInv[req.ingredientId] = (nextInv[req.ingredientId] || 0) - req.amount;
+          let needed = req.amount;
+          if (nextInv[req.ingredientId]) {
+            const take = Math.min(nextInv[req.ingredientId], needed);
+            nextInv[req.ingredientId] -= take;
+            needed -= take;
+          }
         });
 
         const currentCount = nextInv[selectedItem.id] || 0;
@@ -225,6 +266,56 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
               >
                 🟡 Антидепрессанты
               </button>
+              <button
+                onClick={() => setActiveSubgroup('analgesics')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  activeSubgroup === 'analgesics'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                🩹 Обезболивающие
+              </button>
+              <button
+                onClick={() => setActiveSubgroup('antihistamines')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  activeSubgroup === 'antihistamines'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                🌿 Аллергические
+              </button>
+              <button
+                onClick={() => setActiveSubgroup('vitamins')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  activeSubgroup === 'vitamins'
+                    ? 'bg-yellow-600 text-white shadow-md'
+                    : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                🍋 Витамины
+              </button>
+              <button
+                onClick={() => setActiveSubgroup('nootropics')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  activeSubgroup === 'nootropics'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                🧠 Ноотропы
+              </button>
+              <button
+                onClick={() => setActiveSubgroup('digestive')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  activeSubgroup === 'digestive' || activeSubgroup === 'sorbents'
+                    ? 'bg-teal-600 text-white shadow-md'
+                    : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                🫀 Пищеварение & Сорбенты
+              </button>
             </div>
 
             {/* Catalog Item Cards */}
@@ -329,7 +420,7 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {selectedItem.recipe.ingredients.map(ing => {
                       const ingDef = pharmaPackConfig.ingredients.find(i => i.id === ing.ingredientId);
-                      const available = pharmaState.inventory[ing.ingredientId] || 0;
+                      const available = getIngredientStock(ing.ingredientId, gameState, pharmaState);
                       const hasEnough = available >= ing.amount;
 
                       return (
@@ -455,121 +546,58 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
       )}
 
       {/* Crafting Mini-Game Interactive Modal */}
+      {/* Crafting Interactive Mini-Game Modal */}
       {showCraftModal && selectedItem && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl relative">
-            <button
-              onClick={() => setShowCraftModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-100 p-1 rounded-lg hover:bg-slate-800 transition-all"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="w-full max-w-xl">
+            {(() => {
+              const matchedRecipe = PHARMA_DRUGS_CATALOG.find(d => d.id === selectedItem.id) || PHARMA_DRUGS_CATALOG[0];
 
-            <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-              <span className="text-3xl">{selectedItem.icon}</span>
-              <div>
-                <h3 className="text-lg font-bold text-slate-100 font-unbounded">{selectedItem.name}</h3>
-                <p className="text-xs text-slate-400">Настройка реактора и регуляторов дозировки</p>
-              </div>
-            </div>
+              return (
+                <PharmaCraftingMiniGames
+                  recipe={matchedRecipe}
+                  onCraftCompleted={(outcome: PharmaCraftBatchOutcome) => {
+                    // Deduct 3 ingredients (Base + Catalyst + Packaging) from pharmaState / gameState
+                    const reqSlotIds = [matchedRecipe.base.id, matchedRecipe.catalyst.id, matchedRecipe.packaging.id];
+                    
+                    reqSlotIds.forEach(ingId => {
+                      if (onDeductInventory && (gameState?.inventory?.[ingId as keyof GameState['inventory']] || 0) > 0) {
+                        onDeductInventory(ingId, 1);
+                      }
+                    });
 
-            {/* Sliders */}
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-slate-300">Температура Реактора (°C)</span>
-                  <span className="text-amber-400">{tempC} °C</span>
-                </div>
-                <input
-                  type="range"
-                  min={20}
-                  max={100}
-                  value={tempC}
-                  onChange={e => setTempC(Number(e.target.value))}
-                  className="w-full accent-emerald-500"
+                    onUpdatePharmaState(prev => {
+                      const nextInv = { ...prev.inventory };
+                      
+                      reqSlotIds.forEach(ingId => {
+                        if (nextInv[ingId] && nextInv[ingId] > 0) {
+                          nextInv[ingId] = Math.max(0, nextInv[ingId] - 1);
+                        }
+                      });
+
+                      const prevCount = nextInv[selectedItem.id] || 0;
+                      nextInv[selectedItem.id] = prevCount + outcome.producedUnits;
+
+                      const nextPurity = {
+                        ...prev.purityStock,
+                        [selectedItem.id]: outcome.qualityScore
+                      };
+
+                      return {
+                        ...prev,
+                        inventory: nextInv,
+                        purityStock: nextPurity
+                      };
+                    });
+
+                    onAddHeat(outcome.isDefective ? 5 : 1);
+                    setShowCraftModal(false);
+                    alert(`Синтез ${matchedRecipe.name} завершён (${outcome.batchNumber})!\nКачество: ${outcome.qualityScore}%\nПроизведено: ${outcome.producedUnits} шт.`);
+                  }}
+                  onCancel={() => setShowCraftModal(false)}
                 />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-slate-300">Скорость Перемешивания (RPM)</span>
-                  <span className="text-cyan-400">{rpm} RPM</span>
-                </div>
-                <input
-                  type="range"
-                  min={100}
-                  max={1200}
-                  step={50}
-                  value={rpm}
-                  onChange={e => setRpm(Number(e.target.value))}
-                  className="w-full accent-cyan-500"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-slate-300">Дозировка Вещества (мг)</span>
-                  <span className="text-purple-400">{doseMg} мг</span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={600}
-                  value={doseMg}
-                  onChange={e => setDoseMg(Number(e.target.value))}
-                  className="w-full accent-purple-500"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-slate-800">
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-slate-300">Разбавление Партии (%)</span>
-                  <span className="text-rose-400">{dilutionPercent}% (+выход, -чистота)</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={50}
-                  step={5}
-                  value={dilutionPercent}
-                  onChange={e => setDilutionPercent(Number(e.target.value))}
-                  className="w-full accent-rose-500"
-                />
-              </div>
-            </div>
-
-            {/* Result Feedback Banner */}
-            {lastCraftResult && (
-              <div
-                className={`p-4 rounded-xl border text-xs space-y-1 ${
-                  lastCraftResult.accidentOccurred
-                    ? 'bg-rose-950/40 border-rose-800 text-rose-300'
-                    : lastCraftResult.qualityGrade === 'premium'
-                    ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-300'
-                }`}
-              >
-                <div className="font-bold flex items-center justify-between text-sm">
-                  <span>Результат Синтеза: {lastCraftResult.qualityGrade.toUpperCase()}</span>
-                  <span>Чистота: {lastCraftResult.purity}%</span>
-                </div>
-                <div>Произведено: {lastCraftResult.amountProduced} ед.</div>
-                {lastCraftResult.accidentOccurred && (
-                  <div className="text-rose-400 font-bold mt-1">
-                    ⚠️ АВАРИЯ В ЛАБОРАТОРИИ: {lastCraftResult.accidentType}! Жар +{lastCraftResult.heatGenerated}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={handleStartCraft}
-              disabled={isCrafting}
-              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
-            >
-              {isCrafting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-white" />}
-              {isCrafting ? 'Синтезирование...' : 'Начать Реакцию'}
-            </button>
+              );
+            })()}
           </div>
         </div>
       )}

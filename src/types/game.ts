@@ -155,9 +155,22 @@ export interface MushroomBatch {
 }
 
 export type SynthesisStage = 'precursor_extraction' | 'reaction' | 'purification' | 'dosing' | 'completed';
+export type SynthesisPipelinePhase = 'preparation' | 'minigame' | 'process' | 'summary' | 'completed';
+
+export interface StageResultDef {
+  stars: number;
+  purityDelta: number;
+  yieldDelta: number;
+  feedback: string;
+}
 
 export interface LSDSynthesisBatch {
   id: string;
+  stageIndex?: number; // 0 to 4
+  pipelinePhase?: SynthesisPipelinePhase;
+  startedAt?: number;
+  endsAt?: number;
+  stageResults?: Record<number, StageResultDef>;
   stage: SynthesisStage;
   progress: number; // 0 to 100
   ergotamineGrams: number;

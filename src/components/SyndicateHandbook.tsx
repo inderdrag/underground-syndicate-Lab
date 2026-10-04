@@ -529,43 +529,77 @@ export const SyndicateHandbook: React.FC<SyndicateHandbookProps> = ({ language }
               <div className="border-b border-white/10 pb-3">
                 <h2 className="text-base font-bold text-cyan-400 flex items-center gap-2 font-mono">
                   <FlaskConical className="w-5 h-5 text-cyan-400" />
-                  <span>8. Руководство по Аптеке & Рецептурному Отпуску</span>
+                  <span>8. Руководство по Аптеке, 22 Препаратам и Рецептурным Бланкам</span>
                 </h2>
                 <p className="text-slate-400 text-xs mt-1">
-                  Кассовый терминал, рецептурный и безрецептурный учет, подставные покупатели и нелегальные сделки.
+                  Полная рецептура 22 препаратов, мини-игры крафта, экспертиза бланков 107-1/у, 148-1/у-88, 107/у-НП и правила подделки.
                 </p>
               </div>
 
-              <div className="p-3 bg-cyan-950/30 border border-cyan-500/30 rounded-xl space-y-1 text-slate-300">
-                <div className="font-bold text-white">Правила работы аптечной кассы:</div>
-                <p className="text-xs">
-                  В вашей аптеке каждый входящий клиент запрашивает нужный ему медикамент. Легальные безрецептурные препараты (Парацетамол, Ибупрофен, Мелатонин, Аспирин) отпускаются без ограничений.
-                </p>
+              {/* 22 DRUGS TABLE */}
+              <div className="p-4 bg-[#080d14] border border-cyan-500/30 rounded-2xl space-y-3 font-mono text-[11px]">
+                <h3 className="font-bold text-sm text-cyan-200">🧪 Рецептурный Каталог (22 Препарата)</h3>
+                <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto pr-1">
+                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-400">1-5. Безрецептурная группа (Полки A):</div>
+                    <p className="text-slate-300">
+                      • <strong>Парацетамол:</strong> «Альба» + Крахмальное связующее + Бумажный блистер [Ползунок]<br />
+                      • <strong>Ибупрофен:</strong> «Альба-Про» + Цитрусовый буфер + Фольга [Ползунок]<br />
+                      • <strong>Мелатонин:</strong> Экстракт «Лунный цвет» + Растительный сорбент + Тёмная банка [Ползунок (медленный)]<br />
+                      • <strong>Аспирин:</strong> Ивовый экстракт + Кислотный буфер + Бумажный блистер [Ползунок]<br />
+                      • <strong>Активированный уголь:</strong> Обожжённая древесина + Пористый активатор + Картонный стрип [Ползунок]<br />
+                      • <strong>Лоратадин:</strong> «Альба-Анти» + Антигистаминный модуль + Фольга [Ползунок]<br />
+                      • <strong>Но-шпа:</strong> «Спазмо-лит» + Мягкий растворитель + Пластиковый блистер [Ползунок]<br />
+                      • <strong>Витамин C:</strong> Цитрусовый концентрат + Шипучий активатор + Тубус [Ползунок]
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
+                    <div className="font-bold text-blue-400">6-10. Рецептурная группа (Сейфы B / Бланк 107-1/у):</div>
+                    <p className="text-slate-300">
+                      • <strong>Габапентин:</strong> Нейро-экстракт «Седа» + Щелочной буфер + Серая фольга [Ползунок (медленный)]<br />
+                      • <strong>Лирика:</strong> Нейро-экстракт «Седа-Про» + «Тихий лист» + Капсульная упаковка [Ползунок + таймер]<br />
+                      • <strong>Золофт:</strong> Основа «Серо» + «Солнечный цитрус» + Оболочка + блистер [Долгая варка]<br />
+                      • <strong>Прозак:</strong> Основа «Серо-Лайт» + Фокус-модуль + Капсула [Долгая варка]<br />
+                      • <strong>Трамадол:</strong> «Анальга» + Медленный высвободитель + Термоупаковка [Баланс «сила/риск»]
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
+                    <div className="font-bold text-amber-400">11-15. Особый Учёт (Сейфы C / Бланк 148-1/у-88):</div>
+                    <p className="text-slate-300">
+                      • <strong>Золпидем:</strong> «Сомна» + Быстрый растворитель + Герметичный блистер [Ползунок (точный)]<br />
+                      • <strong>Ксанакс:</strong> «Транкви» + Стабилизатор «Тишина» + Защищённый блистер [Ползунок (точный)]<br />
+                      • <strong>Модафинил:</strong> «Вигил» + Тоник «Ясность» + Блистер [Ритм]<br />
+                      • <strong>Риталин:</strong> «Фокус-Стим» + Нейро-активатор + Блистер [Ритм]<br />
+                      • <strong>Кодеин:</strong> «Тёмная смола-Лайт» + Смягчитель + Блистер [Баланс «сила/риск»]
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-900/80 border border-slate-700 rounded-xl space-y-1">
+                    <div className="font-bold text-rose-400">16-17. Элитные Препараты (Подсобка D / Спецбланк 107/у-НП):</div>
+                    <p className="text-slate-300">
+                      • <strong>Аддерол:</strong> «Стим-Микс» + Пролонгатор XR + Капсула с гранулами [Ритм + перегрев]<br />
+                      • <strong>Оксикодон:</strong> «Тёмная смола-Про» + Контроль высвобождения + Защита от вскрытия [Баланс «сила/риск»]<br />
+                      • <strong>Морфин:</strong> «Тёмная смола-Элит» + Стерильный раствор + Стеклянные ампулы [Стерильность]<br />
+                      • <strong>Фентанил:</strong> «Синт-Нейро» + Матрица трансдермы + Ламинированный пластырь [Минимальный допуск]
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono text-[11px]">
-                <div className="p-3 bg-[#0e1622] border border-emerald-500/30 rounded-xl space-y-1">
-                  <div className="font-bold text-emerald-400">1. Продажа По Рецепту (Официально)</div>
-                  <p className="text-slate-400">
-                    Если клиент имеет действующий рецепт на рецептурные средства (Лирика, Трамадол, Золофт, Ксанакс и др.), продажа 100% легальна. Ноль внимания копов.
-                  </p>
-                </div>
-
-                <div className="p-3 bg-[#0e1622] border border-rose-500/30 rounded-xl space-y-1">
-                  <div className="font-bold text-rose-400">2. Продажа БЕЗ Рецепта / Из-под полы</div>
-                  <p className="text-slate-400">
-                    Клиенты без рецепта платят двойной ценник за нелегальный отпуск препаратов. Однако это повышает риск инспекции Минздрава и полиции!
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3.5 bg-amber-950/20 border border-amber-500/30 rounded-2xl space-y-2">
-                <strong className="text-amber-400 text-xs flex items-center gap-1.5 font-mono">
-                  <ShieldAlert className="w-4 h-4 text-amber-400" /> Подставные покупатели и агенты полиции:
+              {/* PRESCRIPTION BLANKS RULES */}
+              <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-2xl space-y-2 font-mono text-[11px]">
+                <strong className="text-amber-300 text-xs flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-amber-400" /> Правила Рецептурных Бланков и Проверки:
                 </strong>
-                <p className="text-[11px] text-amber-300/90 font-mono">
-                  Будьте осторожны! Некоторые заходящие клиенты — это переодетые агенты ОБНОН или инспекторы Минздрава. Если вы продадите им строго рецептурный препарат без рецепта или наркотик из-под полы, произойдет контрольная закупка, штраф и рейд на склад!
-                </p>
+                <ul className="list-disc list-inside space-y-1 text-amber-200/90">
+                  <li><strong>Форма 107-1/у (Rx):</strong> Срок 60 дней. Для Габапентина, Лирики, Золофта, Трамадола, Прозака.</li>
+                  <li><strong>Форма 148-1/у-88 (Особый учёт):</strong> Срок 15 дней. Для Золпидема, Ксанакса, Модафинила, Риталина, Кодеина.</li>
+                  <li><strong>Спецбланк 107/у-НП (Элитный):</strong> Розовая защитная сетка. Срок 15 дней, без повторов. Для Аддерола, Оксикодона, Морфина, Фентанила.</li>
+                  <li><strong>Экспертиза бланка:</strong> При проверке ищите 2-3 ошибки (просроченная дата, поддельная печать, не та подпись, превышение дозы).</li>
+                  <li><strong>Подделка:</strong> Требуются «Чистый бланк» + «Печать врача» + мини-игра подписи.</li>
+                </ul>
               </div>
             </div>
           )}

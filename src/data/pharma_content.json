@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "packName": "PHARMA_CONTENT_PACK",
   "version": "2.2.0",
-  "description": "Конфигурация аптечной группы препаратов. Безрецептурные: Парацетамол, Ибупрофен, Мелатонин. На все остальные требуется рецепт.",
+  "description": "Конфигурация аптечной группы препаратов, синхронизированная с единым каталогом PHARMA.",
   "rarityColors": {
     "common": "#9ea0a5",
     "uncommon": "#10b981",
@@ -44,6 +44,106 @@
     { "id": "black_market", "name": "Теневой Даркнет-Заказчик", "priceMultiplier": 2.0, "suspicionModifier": 2.0 }
   ],
   "items": [
+    {
+      "id": "aspirin",
+      "name": "Аспирин",
+      "brand": "Аспирин 500 мг (Байер)",
+      "rarity": "common",
+      "basePrice": 6,
+      "effect": "−Усталость, +10 HP",
+      "sideEffect": "Легкое раздражение желудка",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-1 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 12,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "activated_charcoal",
+      "name": "Активированный уголь",
+      "brand": "Уголь Активированный 250 мг",
+      "rarity": "common",
+      "basePrice": 5,
+      "effect": "Снимает токсины и химический «откат»",
+      "sideEffect": "Снижает эффект других лекарств при одновременном приеме",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-2 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 10,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "loratadine",
+      "name": "Лоратадин",
+      "brand": "Лоратадин 10 мг (Шеринг)",
+      "rarity": "common",
+      "basePrice": 8,
+      "effect": "Убирает аллергию и зуд кожи при контакте с реактивами",
+      "sideEffect": "Нет",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-3 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 15,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "no_shpa",
+      "name": "Но-шпа",
+      "brand": "Но-шпа 40 мг (Санофи)",
+      "rarity": "common",
+      "basePrice": 9,
+      "effect": "Снимает спазмы, +15% к стабильности организма",
+      "sideEffect": "Небольшое снижение артериального давления",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-4 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 15,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "vitamin_c",
+      "name": "Витамин C",
+      "brand": "Витамин C 1000 мг Шипучий",
+      "rarity": "common",
+      "basePrice": 7,
+      "effect": "+Иммунитет, снижает шанс простуды и отравления",
+      "sideEffect": "Нет",
+      "isPrescriptionRequired": false,
+      "shelfNumber": "Полка A-5 (Безрецептурный зал)",
+      "hasDebuff": false,
+      "debuffName": "Нет",
+      "addictionRate": 0,
+      "suspicionRate": 0,
+      "craftTimeSeconds": 12,
+      "recipe": [
+        { "componentId": "base", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
     {
       "id": "paracetamol",
       "name": "Парацетамол",
@@ -168,27 +268,6 @@
       ]
     },
     {
-      "id": "tramadol",
-      "name": "Трамадол",
-      "brand": "Tramadol 50 мг (Grünenthal)",
-      "rarity": "uncommon",
-      "basePrice": 45,
-      "effect": "Блокирует боль и плюс к выносливости",
-      "sideEffect": "Откат: усталость после действия",
-      "isPrescriptionRequired": true,
-      "shelfNumber": "Сейф B-4 (Строгий учёт)",
-      "hasDebuff": true,
-      "debuffName": "Пост-эффектная усталость",
-      "addictionRate": 15,
-      "suspicionRate": 5,
-      "craftTimeSeconds": 45,
-      "recipe": [
-        { "componentId": "base", "amount": 1 },
-        { "componentId": "catalyst", "amount": 1 },
-        { "componentId": "packaging", "amount": 1 }
-      ]
-    },
-    {
       "id": "prozac",
       "name": "Прозак",
       "brand": "PROZAC 20 мг (Lilly)",
@@ -233,7 +312,7 @@
     {
       "id": "xanax",
       "name": "Ксанакс",
-      "brand": "XANAX 1 мг (Upjohn / Pfizer)",
+      "brand": "XANAX 1 мг (Pfizer)",
       "rarity": "rare",
       "basePrice": 90,
       "effect": "Убирает панику и стресс, плюс к скрытности",
@@ -294,27 +373,6 @@
       ]
     },
     {
-      "id": "codeine",
-      "name": "Кодеин",
-      "brand": "Кодеин 30 мг",
-      "rarity": "rare",
-      "basePrice": 130,
-      "effect": "Сильное обезболивание и заторможенность",
-      "sideEffect": "Сонливость и шанс зависимости",
-      "isPrescriptionRequired": true,
-      "shelfNumber": "Сейф C-5 (Особый учёт)",
-      "hasDebuff": true,
-      "debuffName": "Тяжёлая сонливость",
-      "addictionRate": 30,
-      "suspicionRate": 15,
-      "craftTimeSeconds": 75,
-      "recipe": [
-        { "componentId": "base", "amount": 1 },
-        { "componentId": "catalyst", "amount": 2 },
-        { "componentId": "packaging", "amount": 1 }
-      ]
-    },
-    {
       "id": "adderall",
       "name": "Аддерол",
       "brand": "ADDERALL XR 20 мг (Shire)",
@@ -330,7 +388,49 @@
       "suspicionRate": 25,
       "craftTimeSeconds": 90,
       "recipe": [
+        { "componentId": "base", "amount": 2 },
+        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "tramadol",
+      "name": "Трамадол",
+      "brand": "Tramadol 50 мг (Grünenthal)",
+      "rarity": "uncommon",
+      "basePrice": 45,
+      "effect": "Блокирует боль и плюс к выносливости",
+      "sideEffect": "Откат: усталость после действия",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф B-4 (Строгий учёт)",
+      "hasDebuff": true,
+      "debuffName": "Пост-эффектная усталость",
+      "addictionRate": 15,
+      "suspicionRate": 5,
+      "craftTimeSeconds": 45,
+      "recipe": [
         { "componentId": "base", "amount": 1 },
+        { "componentId": "catalyst", "amount": 1 },
+        { "componentId": "packaging", "amount": 1 }
+      ]
+    },
+    {
+      "id": "codeine",
+      "name": "Кодеин",
+      "brand": "Кодеин 30 мг",
+      "rarity": "rare",
+      "basePrice": 130,
+      "effect": "Сильное обезболивание и заторможенность",
+      "sideEffect": "Сонливость и шанс зависимости",
+      "isPrescriptionRequired": true,
+      "shelfNumber": "Сейф C-5 (Особый учёт)",
+      "hasDebuff": true,
+      "debuffName": "Тяжёлая сонливость",
+      "addictionRate": 30,
+      "suspicionRate": 15,
+      "craftTimeSeconds": 75,
+      "recipe": [
+        { "componentId": "base", "amount": 2 },
         { "componentId": "catalyst", "amount": 2 },
         { "componentId": "packaging", "amount": 1 }
       ]
@@ -351,7 +451,7 @@
       "suspicionRate": 35,
       "craftTimeSeconds": 100,
       "recipe": [
-        { "componentId": "base", "amount": 1 },
+        { "componentId": "base", "amount": 3 },
         { "componentId": "catalyst", "amount": 2 },
         { "componentId": "packaging", "amount": 1 }
       ]
@@ -372,15 +472,15 @@
       "suspicionRate": 45,
       "craftTimeSeconds": 110,
       "recipe": [
-        { "componentId": "base", "amount": 1 },
-        { "componentId": "catalyst", "amount": 2 },
+        { "componentId": "base", "amount": 3 },
+        { "componentId": "catalyst", "amount": 3 },
         { "componentId": "packaging", "amount": 1 }
       ]
     },
     {
       "id": "fentanyl",
       "name": "Фентанил",
-      "brand": "FENTANYL 100 mcg/h (Пластыри)",
+      "brand": "FENTANYL 100 мкг/ч (Пластыри)",
       "rarity": "legendary",
       "basePrice": 1000,
       "effect": "Огромный эффект, элитный товар с максимальным чеком",
@@ -393,9 +493,9 @@
       "suspicionRate": 80,
       "craftTimeSeconds": 120,
       "recipe": [
-        { "componentId": "base", "amount": 1 },
-        { "componentId": "catalyst", "amount": 3 },
-        { "componentId": "packaging", "amount": 1 }
+        { "componentId": "base", "amount": 5 },
+        { "componentId": "catalyst", "amount": 4 },
+        { "componentId": "packaging", "amount": 2 }
       ]
     }
   ]

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import pharmaData from '../../data/pharma_content.json';
 import { PharmaProductBox, PharmaRarity } from './PharmaProductBox';
+import { PrescriptionInspectionModal } from './PrescriptionInspectionModal';
+import { PrescriptionForgeryModal } from './PrescriptionForgeryModal';
+import { PrescriptionBlankItem } from '../../data/prescription_blanks_config';
 import { GameState } from '../../types/game';
 import {
   PharmaGameState,
@@ -113,27 +116,38 @@ const LAST_NAMES_OR_ROLES = [
 const AVATARS = ['👵', '👴', '🧢', '🕶️', '👨‍💼', '👩‍💼', '👩‍⚕️', '🕺', '👩‍🎤', '🕵️‍♂️', '🕵️', '🧔', '👩', '👨', '🧑‍🎓', '🧑‍🎤', '🧟', '👱‍♂️', '👱‍♀️'];
 
 const DRUG_REQUEST_POOL = [
-  // OTC
-  { id: 'paracetamol', name: 'Парацетамол 500 мг', category: 'otc' as const, basePrice: 12 },
-  { id: 'ibuprofen', name: 'Ибупрофен 400 мг', category: 'otc' as const, basePrice: 15 },
-  { id: 'melatonin', name: 'Мелатонин 3 мг', category: 'otc' as const, basePrice: 18 },
+  // OTC (Безрецептурные)
+  { id: 'aspirin', name: 'Аспирин', category: 'otc' as const, basePrice: 6 },
+  { id: 'activated_charcoal', name: 'Активированный уголь', category: 'otc' as const, basePrice: 5 },
+  { id: 'loratadine', name: 'Лоратадин', category: 'otc' as const, basePrice: 8 },
+  { id: 'no_shpa', name: 'Но-шпа', category: 'otc' as const, basePrice: 9 },
+  { id: 'vitamin_c', name: 'Витамин C', category: 'otc' as const, basePrice: 7 },
+  { id: 'paracetamol', name: 'Парацетамол', category: 'otc' as const, basePrice: 5 },
+  { id: 'ibuprofen', name: 'Ибупрофен', category: 'otc' as const, basePrice: 8 },
+  { id: 'melatonin', name: 'Мелатонин', category: 'otc' as const, basePrice: 10 },
 
-  // Prescription Rx
-  { id: 'tramadol', name: 'Трамадол 50 мг', category: 'prescription' as const, basePrice: 55 },
-  { id: 'lyrica', name: 'Лирика 75 мг', category: 'prescription' as const, basePrice: 85 },
-  { id: 'zoloft', name: 'Золофт 50 мг', category: 'prescription' as const, basePrice: 50 },
-  { id: 'xanax', name: 'Ксанакс 1 мг', category: 'prescription' as const, basePrice: 140 },
-  { id: 'gabapentin', name: 'Габапентин 300 мг', category: 'prescription' as const, basePrice: 65 },
-  { id: 'modafinil', name: 'Модафинил 100 мг', category: 'prescription' as const, basePrice: 110 },
-  { id: 'codeine', name: 'Кодеин Сироп', category: 'prescription' as const, basePrice: 130 },
-  { id: 'oxycodone', name: 'Оксикодон 10 мг', category: 'prescription' as const, basePrice: 180 },
+  // Prescription Rx (Рецептурные)
+  { id: 'gabapentin', name: 'Габапентин', category: 'prescription' as const, basePrice: 25 },
+  { id: 'lyrica', name: 'Лирика', category: 'prescription' as const, basePrice: 35 },
+  { id: 'zoloft', name: 'Золофт', category: 'prescription' as const, basePrice: 40 },
+  { id: 'prozac', name: 'Прозак', category: 'prescription' as const, basePrice: 45 },
+  { id: 'tramadol', name: 'Трамадол', category: 'prescription' as const, basePrice: 45 },
+  { id: 'zolpidem', name: 'Золпидем', category: 'prescription' as const, basePrice: 70 },
+  { id: 'xanax', name: 'Ксанакс', category: 'prescription' as const, basePrice: 90 },
+  { id: 'modafinil', name: 'Модафинил', category: 'prescription' as const, basePrice: 100 },
+  { id: 'ritalin', name: 'Риталин', category: 'prescription' as const, basePrice: 120 },
+  { id: 'codeine', name: 'Кодеин', category: 'prescription' as const, basePrice: 130 },
+  { id: 'adderall', name: 'Аддерол', category: 'prescription' as const, basePrice: 200 },
+  { id: 'oxycodone', name: 'Оксикодон', category: 'prescription' as const, basePrice: 300 },
+  { id: 'morphine', name: 'Морфин', category: 'prescription' as const, basePrice: 450 },
+  { id: 'fentanyl', name: 'Фентанил', category: 'prescription' as const, basePrice: 1000 },
 
-  // Narcotics
+  // Narcotics (Запрещенные вещества)
   { id: 'whiteWidowGrams', name: 'Каннабис «White Widow» (10г)', category: 'narcotics' as const, basePrice: 220, amount: 10 },
   { id: 'mushroomsGrams', name: 'Грибы «Астрал» (15г)', category: 'narcotics' as const, basePrice: 280, amount: 15 },
   { id: 'lsdSheets', name: 'ЛСД Блоттер (1 лист)', category: 'narcotics' as const, basePrice: 450, amount: 1 },
   { id: 'cocaineGrams', name: 'Кокаин «Fishscale» (5г)', category: 'narcotics' as const, basePrice: 500, amount: 5 },
-  { id: 'powderGrams', name: 'Порошок «Аврора» (10г)', category: 'narcotics' as const, basePrice: 600, amount: 10 },
+  { id: 'powderGrams', name: 'Порошок «Аврора» (10г)', category: 'narcotics' as const, basePrice: 600, amount: 10 }
 ];
 
 let globalCustomerCounter = 1;
@@ -280,7 +294,9 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
     }
 
     const item = pharmaData.items.find(i => i.id === currentCustomer.requestedItemId) as PharmaItemConfig;
-    const stock = pharmaInventory[currentCustomer.requestedItemId] || 0;
+    const stock = (pharmaInventory[currentCustomer.requestedItemId] || 0) + 
+                  (pharmaState?.inventory?.[currentCustomer.requestedItemId] || 0) + 
+                  ((gameState?.inventory as any)?.[currentCustomer.requestedItemId] || 0);
 
     if (stock < 1) {
       setNotification(`⚠️ Нет на складе препарата «${currentCustomer.requestedItemName}»! Скрафтите его в Лаборатории.`);
@@ -292,8 +308,23 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
       return;
     }
 
-    // Deduct stock
-    setPharmaInventory(prev => ({ ...prev, [item.id]: prev[item.id] - 1 }));
+    // Deduct stock cleanly from pharmaState, gameState, or local fallback
+    const itemId = currentCustomer.requestedItemId;
+    if (pharmaState?.inventory?.[itemId] && pharmaState.inventory[itemId] > 0) {
+      if (onUpdatePharmaState) {
+        onUpdatePharmaState({
+          ...pharmaState,
+          inventory: {
+            ...pharmaState.inventory,
+            [itemId]: Math.max(0, (pharmaState.inventory[itemId] || 0) - 1)
+          }
+        });
+      }
+    } else if (gameState?.inventory?.[itemId as keyof GameState['inventory']]) {
+      (gameState.inventory as any)[itemId] = Math.max(0, ((gameState.inventory as any)[itemId] || 0) - 1);
+    } else if (pharmaInventory[itemId] > 0) {
+      setPharmaInventory(prev => ({ ...prev, [itemId]: Math.max(0, prev[itemId] - 1) }));
+    }
     onAddCash(currentCustomer.offeredPrice);
 
     addHistoryLog('official_sale', currentCustomer.offeredPrice);
@@ -320,12 +351,31 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
         (gameState.inventory as any)[key] = Math.max(0, (gameState.inventory as any)[key] - currentCustomer.amountRequested);
       }
     } else {
-      const stock = pharmaInventory[currentCustomer.requestedItemId] || 0;
+      const stock = (pharmaInventory[currentCustomer.requestedItemId] || 0) + 
+                    (pharmaState?.inventory?.[currentCustomer.requestedItemId] || 0) + 
+                    ((gameState?.inventory as any)?.[currentCustomer.requestedItemId] || 0);
+
       if (stock < 1) {
         setNotification(`⚠️ Нет на складе препарата «${currentCustomer.requestedItemName}»!`);
         return;
       }
-      setPharmaInventory(prev => ({ ...prev, [currentCustomer.requestedItemId]: prev[currentCustomer.requestedItemId] - 1 }));
+
+      const itemId = currentCustomer.requestedItemId;
+      if (pharmaState?.inventory?.[itemId] && pharmaState.inventory[itemId] > 0) {
+        if (onUpdatePharmaState) {
+          onUpdatePharmaState({
+            ...pharmaState,
+            inventory: {
+              ...pharmaState.inventory,
+              [itemId]: Math.max(0, (pharmaState.inventory[itemId] || 0) - 1)
+            }
+          });
+        }
+      } else if (gameState?.inventory?.[itemId as keyof GameState['inventory']]) {
+        (gameState.inventory as any)[itemId] = Math.max(0, ((gameState.inventory as any)[itemId] || 0) - 1);
+      } else if (pharmaInventory[itemId] > 0) {
+        setPharmaInventory(prev => ({ ...prev, [itemId]: Math.max(0, prev[itemId] - 1) }));
+      }
     }
 
     // UNDERCOVER COP CHECK!
@@ -348,7 +398,10 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
     handleNextCustomer();
   };
 
-  // Refuse Sale
+  // Inspection & Forgery Modal States
+  const [showInspectionModal, setShowInspectionModal] = useState<boolean>(false);
+  const [showForgeryModal, setShowForgeryModal] = useState<boolean>(false);
+  const [inspectionBlankItem, setInspectionBlankItem] = useState<PrescriptionBlankItem | null>(null);
   const handleRefuseSale = () => {
     if (!currentCustomer) return;
     addHistoryLog('rejected', 0);
@@ -538,36 +591,111 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-2">
             <button
               onClick={handleSellOfficial}
               disabled={currentCustomer.categoryType === 'narcotics'}
-              className={`py-3.5 px-4 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-1 ${
+              className={`py-3.5 px-3 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-1 ${
                 currentCustomer.categoryType === 'narcotics'
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800'
                   : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'
               }`}
             >
-              <span className="flex items-center gap-1.5">🟢 Продать легально</span>
-              <span className="text-[10px] font-normal opacity-90">По рецепту / OTC (${currentCustomer.offeredPrice})</span>
+              <span className="flex items-center gap-1">🟢 Продать легально</span>
+              <span className="text-[10px] font-normal opacity-90">${currentCustomer.offeredPrice}</span>
             </button>
+
+            {currentCustomer.categoryType === 'prescription' && (
+              <button
+                onClick={() => {
+                  const isFake = currentCustomer.isUndercoverCop || Math.random() < 0.3;
+                  setInspectionBlankItem({
+                    id: `BLANK-${Date.now()}`,
+                    blankLevel: 'form_107_1u',
+                    series: '107',
+                    number: '884920',
+                    doctorName: 'Д-р Петров В.С.',
+                    hospitalName: 'Городская Поликлиника №4',
+                    patientName: currentCustomer.name,
+                    drugId: currentCustomer.requestedItemId,
+                    drugName: currentCustomer.requestedItemName,
+                    prescribedDoseMg: 100,
+                    quantityUnits: 1,
+                    issueDateDay: 1,
+                    isForged: isFake,
+                    discrepancies: isFake ? ['expired_date', 'smudged_stamp'] : [],
+                    isValid: !isFake
+                  });
+                  setShowInspectionModal(true);
+                }}
+                className="py-3.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex flex-col items-center justify-center gap-1"
+              >
+                <span className="flex items-center gap-1">🔍 Проверить рецепт</span>
+                <span className="text-[10px] font-normal text-blue-100">Экспертиза</span>
+              </button>
+            )}
 
             <button
               onClick={handleSellUnderTheCounter}
-              className="py-3.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all flex flex-col items-center justify-center gap-1"
+              className="py-3.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all flex flex-col items-center justify-center gap-1"
             >
-              <span className="flex items-center gap-1.5">🔴 Продать из-под полы</span>
-              <span className="text-[10px] font-normal text-purple-100">Нелегально (${currentCustomer.offeredPrice})</span>
+              <span className="flex items-center gap-1">🔴 Из-под полы</span>
+              <span className="text-[10px] font-normal text-purple-100">${currentCustomer.offeredPrice}</span>
             </button>
 
             <button
               onClick={handleRefuseSale}
-              className="py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-all flex flex-col items-center justify-center gap-1"
+              className="py-3.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-all flex flex-col items-center justify-center gap-1"
             >
-              <span className="flex items-center gap-1.5">⚪ Отказать</span>
-              <span className="text-[10px] font-normal text-slate-400">Безопасный пропуск</span>
+              <span className="flex items-center gap-1">⚪ Отказать</span>
+              <span className="text-[10px] font-normal text-slate-400">Пропуск</span>
             </button>
           </div>
+
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={() => setShowForgeryModal(true)}
+              className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <span>✍️ Открыть Мастерскую Подделки Бланков</span>
+            </button>
+          </div>
+
+          {/* Inspection Modal */}
+          {showInspectionModal && inspectionBlankItem && (
+            <PrescriptionInspectionModal
+              blank={inspectionBlankItem}
+              patientName={currentCustomer.name}
+              patientAvatar={currentCustomer.avatar}
+              onVerifyResult={(passed, discrepanciesFound) => {
+                setShowInspectionModal(false);
+                if (passed) {
+                  setNotification('✅ Рецепт проверен и признан подлинным! Легальная отгрузка зафиксирована.');
+                  handleSellOfficial();
+                } else {
+                  setNotification(`⚠️ Выявлена подделка или ошибка рецепта (${discrepanciesFound} нарушений)! Отказ в отпуске.`);
+                  handleRefuseSale();
+                }
+              }}
+              onClose={() => setShowInspectionModal(false)}
+            />
+          )}
+
+          {/* Forgery Modal */}
+          {showForgeryModal && (
+            <PrescriptionForgeryModal
+              inventory={gameState?.inventory || {}}
+              onForgeCompleted={(newBlank) => {
+                setShowForgeryModal(false);
+                if (newBlank.isValid) {
+                  setNotification(`🎉 Успешно изготовлен поддельный бланк серии ${newBlank.series}! Добавлен в инвентарь.`);
+                } else {
+                  setNotification(`⚠️ Бланк выполнен с дефектом подписи! Повышен шанс раскрытия при продаже.`);
+                }
+              }}
+              onClose={() => setShowForgeryModal(false)}
+            />
+          )}
 
           {/* Sales & Service History Log */}
           <div className="bg-slate-950/90 border border-slate-800 p-5 rounded-2xl space-y-3 mt-4">
@@ -769,7 +897,7 @@ export const PharmaPharmacyTab: React.FC<PharmaPharmacyTabProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {pharmaData.items.map((itemAny) => {
                   const item = itemAny as PharmaItemConfig;
-                  const count = pharmaInventory[item.id] || 0;
+                  const count = (pharmaState?.inventory?.[item.id] || 0) + ((gameState?.inventory as any)?.[item.id] || 0) + (pharmaInventory[item.id] || 0);
                   const rarityColor = activeRarityColor(item.rarity);
 
                   return (

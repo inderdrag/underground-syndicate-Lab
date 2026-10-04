@@ -595,6 +595,8 @@ export default function App() {
       if (prev.inventory.ergotCultures <= 0 || prev.inventory.diethylamineMl < 50) return prev;
       const newLsd: LSDSynthesisBatch = {
         id: `lsd_${Date.now()}`,
+        stageIndex: 0,
+        pipelinePhase: 'preparation',
         stage: 'precursor_extraction',
         progress: 0,
         ergotamineGrams: 5.0,
@@ -740,6 +742,7 @@ export default function App() {
             powder_license: false,
             neuro_license: false,
             facility_license: false,
+            pharma_license: false,
           }),
           [licenseId]: true,
         },
@@ -1325,6 +1328,7 @@ export default function App() {
 
         {currentPhase === 'pharma_lab' && (
           <PharmaLabView
+            gameState={gameState}
             pharmaState={pharmaState}
             onUpdatePharmaState={setPharmaState}
             onAddCash={(amount) => setGameState(prev => ({ ...prev, cash: prev.cash + amount }))}
