@@ -1,12 +1,13 @@
 /**
  * Complete Data-Driven Megastore Catalog including all 22 Bases, 22 Catalysts, 18 Packaging types,
  * Prescription Blank Supplies, Doctor Stamps, and Lab Hardware.
+ * Every ingredient corresponds strictly to recipes used in Pharma Lab.
  */
 
 export interface MegastoreCatalogItem {
   id: string;
   name: string;
-  category: 'base' | 'catalyst' | 'packaging' | 'blanks' | 'raw_materials' | 'hardware';
+  category: 'base' | 'catalyst' | 'packaging' | 'blanks' | 'hardware';
   licenseRequired: 'pharma_license' | 'synthesis_license' | 'botany_license' | 'mycology_license' | 'facility_license';
   unitPrice: number;
   packSize: number;
@@ -15,11 +16,6 @@ export interface MegastoreCatalogItem {
 }
 
 export const MEGASTORE_ITEMS: MegastoreCatalogItem[] = [
-  // --- 🧪 БАЗОВЫЕ СЫРЬЕВЫЕ ИНГРЕДИЕНТЫ (RAW MATERIALS) ---
-  { id: 'pharma_base_extract', name: 'Базовый Фарм-Экстракт', category: 'raw_materials', licenseRequired: 'pharma_license', unitPrice: 65, packSize: 1, description: 'Концентрированное химическое сырьё высокой степени очистки', icon: '🧪' },
-  { id: 'pharma_binder', name: 'Фармо-Основа (Связующее)', category: 'raw_materials', licenseRequired: 'pharma_license', unitPrice: 25, packSize: 10, description: 'Медицинский наполнитель для прессования таблеток и капсулирования', icon: '⚪' },
-  { id: 'pharma_stabilizer', name: 'Органический Стабилизатор', category: 'raw_materials', licenseRequired: 'pharma_license', unitPrice: 40, packSize: 5, description: 'Защищает активные химические соединения от окисления и распада', icon: '🛡️' },
-  { id: 'pharma_solvent', name: 'Очищенный Растворитель', category: 'raw_materials', licenseRequired: 'pharma_license', unitPrice: 30, packSize: 10, description: 'Безводный растворитель для приготовления сиропов и экстракций', icon: '💧' },
   // --- 22 ОСНОВЫ (BASES) ---
   { id: 'base_willow_extract', name: 'Ивовый экстракт', category: 'base', licenseRequired: 'pharma_license', unitPrice: 2, packSize: 10, description: 'Природный салицилатный экстракт коры ивы для обычных анальгетиков', icon: '🌿' },
   { id: 'base_charred_wood', name: 'Обожжённая древесина', category: 'base', licenseRequired: 'pharma_license', unitPrice: 1, packSize: 20, description: 'Высокопористый берёзовый сорбент глубокого обжига', icon: '🪵' },

@@ -202,26 +202,24 @@ export const SynthesisPhase: React.FC<SynthesisPhaseProps> = ({
                         <div className="font-bold text-white text-sm">
                           Синтез #{batch.id.slice(-4)}
                         </div>
-                        <div className="text-[11px] text-purple-400 capitalize mt-0.5">
-                          Фаза: {batch.stage}
+                        <div className="text-[11px] text-purple-400 font-mono mt-0.5">
+                          {batch.stageIndex === 0 && 'Этап 1 из 5: Сборка'}
+                          {batch.stageIndex === 1 && 'Этап 2 из 5: Термостат'}
+                          {batch.stageIndex === 2 && 'Этап 3 из 5: Мешалка'}
+                          {batch.stageIndex === 3 && 'Этап 4 из 5: Хроматография'}
+                          {batch.stageIndex === 4 && 'Этап 5 из 5: Блоттер'}
+                          {(!batch.stageIndex || batch.stageIndex >= 5 || batch.stage === 'completed') && 'Завершено'}
                         </div>
                       </div>
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-lg font-mono font-medium ${
-                          isReady
-                            ? 'bg-pink-500/20 text-pink-300 border border-pink-500/40 animate-pulse font-bold'
-                            : 'bg-[#18212e] text-slate-400 border border-white/5'
+                        className={`text-xs px-2.5 py-0.5 rounded-lg font-mono font-bold ${
+                          isReady || batch.pipelinePhase === 'completed'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse'
+                            : 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
                         }`}
                       >
-                        {Math.round(batch.progress)}%
+                        {isReady || batch.pipelinePhase === 'completed' ? 'ГОТОВО' : batch.pipelinePhase === 'process' ? 'РЕАКЦИЯ' : 'АКТИВНО'}
                       </span>
-                    </div>
-
-                    <div className="w-full bg-neutral-800 h-1.5 rounded-full mt-2.5 overflow-hidden">
-                      <div
-                        className="h-full bg-purple-400 transition-all duration-300"
-                        style={{ width: `${Math.min(100, batch.progress)}%` }}
-                      />
                     </div>
 
                     <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mt-2">

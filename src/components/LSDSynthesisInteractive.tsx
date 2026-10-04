@@ -149,8 +149,10 @@ export const LSDSynthesisInteractive: React.FC<LSDSynthesisInteractiveProps> = (
           </div>
 
           <div className="flex items-center gap-3 bg-black/80 px-3 py-1.5 rounded-xl border border-white/10 text-xs font-mono">
-            <span className="text-slate-400">Прогресс партии:</span>
-            <span className="text-cyan-400 font-bold">{overallBatchPercent}%</span>
+            <span className="text-slate-400">Текущий этап:</span>
+            <span className="text-cyan-400 font-bold">
+              {pipelinePhase === 'completed' ? '5 из 5 (Завершено)' : `${stageIndex + 1} из 5`}
+            </span>
             <span className="text-slate-600">|</span>
             <span className="text-slate-400">Чистота:</span>
             <span className="text-amber-400 font-bold">
@@ -263,9 +265,11 @@ export const LSDSynthesisInteractive: React.FC<LSDSynthesisInteractiveProps> = (
                   />
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center font-mono">
-                  <span className="text-3xl font-black text-amber-400">{processProgressPercent}%</span>
-                  <span className="text-[10px] text-slate-400 font-bold mt-0.5">
+                  <span className="text-3xl font-black text-amber-400">
                     00:{remainingSec < 10 ? `0${remainingSec}` : remainingSec}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase tracking-wider">
+                    Ожидание (30с)
                   </span>
                 </div>
               </div>

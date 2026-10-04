@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GameState, SyndicateLicenseId } from '../types/game';
 import { MEGASTORE_ITEMS } from '../data/megastore_catalog';
+import { PHARMA_DRUGS_CATALOG } from '../data/pharma_recipes_config';
 import {
   ShoppingBag,
   Leaf,
@@ -27,6 +28,7 @@ import {
 import { sounds } from '../engine/soundEffects';
 import { Language } from '../i18n/translations';
 import { ProductArtwork } from './ProductArtwork';
+import { hapticFeedback } from '../utils/haptics';
 
 interface MegastoreHubProps {
   gameState: GameState;
@@ -70,6 +72,7 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
   const [activeCategory, setActiveCategory] = useState<StoreCategory | 'all'>('all');
   const [multiplier, setMultiplier] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedDrugId, setSelectedDrugId] = useState<string>('all');
 
   const licensesCatalog: {
     id: SyndicateLicenseId;
@@ -287,57 +290,7 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
       requiredLicense: 'botany_license',
     },
 
-    // --- PHARMACEUTICAL INGREDIENTS ---
-    {
-      id: 'pharma_base',
-      itemKey: 'pharmaBase',
-      nameRu: 'Фарм-Основа (10 ед.)',
-      nameEn: 'Pharma Binder Base (10 units)',
-      category: 'pharma',
-      categoryLabelRu: 'Аптека',
-      pricePerUnit: 20,
-      unitPackSize: 10,
-      unitLabel: '10 ед.',
-      descRu: 'Базовый нейтральный наполнитель для таблеток и капсул.',
-      rarity: 'Обычный',
-      rarityColor: 'text-slate-300 border-white/20',
-      icon: Package,
-      requiredLicense: 'pharma_license',
-    },
-    {
-      id: 'pharma_catalyst',
-      itemKey: 'pharmaCatalyst',
-      nameRu: 'Фарм-Катализатор (10 ед.)',
-      nameEn: 'Active Pharma Catalyst (10 units)',
-      category: 'pharma',
-      categoryLabelRu: 'Аптека',
-      pricePerUnit: 150,
-      unitPackSize: 10,
-      unitLabel: '10 ед.',
-      descRu: 'Усиливающий каталитический реагент для рецептурных средств.',
-      rarity: 'Необычный',
-      rarityColor: 'text-emerald-400 border-emerald-500/30',
-      icon: FlaskConical,
-      requiredLicense: 'pharma_license',
-    },
-    {
-      id: 'pharma_packaging',
-      itemKey: 'pharmaPackaging',
-      nameRu: 'Аптечная Упаковка & Блистеры (10 ед.)',
-      nameEn: 'Pharma Blister Packaging (10 units)',
-      category: 'pharma',
-      categoryLabelRu: 'Аптека',
-      pricePerUnit: 30,
-      unitPackSize: 10,
-      unitLabel: '10 ед.',
-      descRu: 'Медицинские блистеры и коробки с защитными голограммами.',
-      rarity: 'Обычный',
-      rarityColor: 'text-slate-300 border-white/20',
-      icon: Boxes,
-      requiredLicense: 'pharma_license',
-    },
-
-    // --- Dynamic Catalog Items from MEGASTORE_ITEMS ---
+    // --- PHARMACEUTICAL INGREDIENTS (Dynamic catalog items from MEGASTORE_ITEMS) ---
     ...MEGASTORE_ITEMS.map(item => ({
       id: item.id,
       itemKey: item.id,
@@ -606,38 +559,74 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
     },
   ];
 
+  // Map ingredientId -> list of drug names using this ingredient
+  const ingredientDrugMap = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    PHARMA_DRUGS_CATALOG.forEach((drug) => {
+      [drug.base.id, drug.catalyst.id, drug.packaging.id].forEach((ingId) => {
+        if (!map[ingId]) map[ingId] = [];
+        if (!map[ingId].includes(drug.name)) {
+          map[ingId].push(drug.name);
+        }
+      });
+    });
+    return map;
+  }, []);
+
+  // Map drugId -> list of required ingredient IDs
+  const drugIngredientMap = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    PHARMA_DRUGS_CATALOG.forEach((drug) => {
+      map[drug.id] = [drug.base.id, drug.catalyst.id, drug.packaging.id];
+    });
+    return map;
+  }, []);
+
   const filteredCatalog = catalog.filter((prod) => {
     const matchCat = activeCategory === 'all' || prod.category === activeCategory;
     const matchSearch =
       prod.nameRu.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prod.descRu.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
+    
+    // Drug filter logic
+    let matchDrug = true;
+    if (selectedDrugId !== 'all') {
+      const requiredIngs = drugIngredientMap[selectedDrugId] || [];
+      matchDrug = requiredIngs.includes(prod.itemKey) || prod.category !== 'pharma';
+    }
+
+    return matchCat && matchSearch && matchDrug;
   });
 
   const handleBuy = (prod: StoreProduct) => {
     if (!isLicenseUnlocked(prod.requiredLicense)) {
+      hapticFeedback.heavy();
       sounds.playAlarmBeep();
       return;
     }
 
     const totalCost = prod.pricePerUnit * multiplier;
     if (gameState.cash < totalCost) {
+      hapticFeedback.heavy();
       sounds.playAlarmBeep();
       return;
     }
 
     if (prod.id === 'fac_solar' && onBuySolarPanel) {
       for (let i = 0; i < multiplier; i++) onBuySolarPanel();
+      hapticFeedback.success();
       sounds.playCash();
       return;
     }
 
     if (prod.id === 'fac_filter' && onInstallCarbonFilter) {
       for (let i = 0; i < multiplier; i++) onInstallCarbonFilter();
+      hapticFeedback.success();
       sounds.playCash();
       return;
     }
 
+    hapticFeedback.medium();
     onDeductCash(totalCost);
     sounds.playCash();
     const totalUnits = prod.unitPackSize * multiplier;
@@ -667,20 +656,53 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
           </div>
         </div>
 
-        {/* Quantity Multiplier Pill */}
+        {/* Quantity Multiplier Stepper & Buttons */}
         <div className="flex items-center gap-1.5 bg-[#0b0e14] p-1.5 rounded-2xl border border-white/10 text-xs font-mono">
-          <span className="text-slate-400 px-1 text-[11px]">Множитель:</span>
+          <span className="text-slate-400 px-1 text-[11px] hidden sm:inline">Закупка:</span>
+          
+          {/* Stepper Minus */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              setMultiplier((m) => Math.max(1, m - 1));
+            }}
+            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-white font-bold flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            title="Уменьшить"
+          >
+            −
+          </button>
+
+          <span className="px-2 text-emerald-400 font-bold font-mono text-sm min-w-[32px] text-center">
+            x{multiplier}
+          </span>
+
+          {/* Stepper Plus */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              setMultiplier((m) => Math.min(100, m + 1));
+            }}
+            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-white font-bold flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            title="Увеличить"
+          >
+            +
+          </button>
+
+          {/* Quick Multipliers x1, x5, x10 */}
           {[1, 5, 10].map((m) => (
             <button
               key={m}
               onClick={() => {
+                hapticFeedback.light();
                 sounds.playClick();
                 setMultiplier(m);
               }}
-              className={`px-3 py-1 rounded-xl transition-all cursor-pointer font-bold ${
+              className={`px-3 py-2 rounded-xl transition-all cursor-pointer font-bold min-h-[44px] ${
                 multiplier === m
-                  ? 'bg-emerald-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white bg-white/5'
               }`}
             >
               x{m}
@@ -756,43 +778,80 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
       </div>
 
       {/* Category Pills & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#080c13] p-3 rounded-2xl border border-white/[0.08]">
-        {/* Categories */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono w-full sm:w-auto">
-          {[
-            { id: 'all', label: 'Все товары' },
-            { id: 'botany', label: '🌿 Ботаника' },
-            { id: 'pharma', label: '💊 Аптека' },
-            { id: 'mycology', label: '🍄 Микология' },
-            { id: 'synthesis', label: '🧪 Хим-синтез' },
-            { id: 'powder', label: '📦 Порошковый цех' },
-            { id: 'facility', label: '⚙️ Инфраструктура' },
-          ].map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => {
-                sounds.playClick();
-                setActiveCategory(cat.id as StoreCategory | 'all');
-              }}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold whitespace-nowrap ${
-                activeCategory === cat.id
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+      <div className="space-y-2.5 bg-[#080c13] p-3 rounded-2xl border border-white/[0.08]">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Categories */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono w-full sm:w-auto">
+            {[
+              { id: 'all', label: 'Все товары' },
+              { id: 'botany', label: '🌿 Ботаника' },
+              { id: 'pharma', label: '💊 Аптека' },
+              { id: 'mycology', label: '🍄 Микология' },
+              { id: 'synthesis', label: '🧪 Хим-синтез' },
+              { id: 'powder', label: '📦 Порошковый цех' },
+              { id: 'facility', label: '⚙️ Инфраструктура' },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  sounds.playClick();
+                  setActiveCategory(cat.id as StoreCategory | 'all');
+                }}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-bold whitespace-nowrap ${
+                  activeCategory === cat.id
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Input */}
+          <input
+            type="text"
+            placeholder="Поиск сырья..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 px-3.5 py-1.5 bg-[#05080e] border border-white/10 rounded-xl text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden focus:border-emerald-500/50"
+          />
         </div>
 
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Поиск сырья..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-64 px-3.5 py-1.5 bg-[#05080e] border border-white/10 rounded-xl text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden focus:border-emerald-500/50"
-        />
+        {/* Pharma Drug Filter Bar */}
+        {(activeCategory === 'all' || activeCategory === 'pharma') && (
+          <div className="pt-2 border-t border-white/5 flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono scrollbar-none">
+            <span className="text-purple-300 text-[11px] font-bold whitespace-nowrap flex items-center gap-1 shrink-0">
+              <Package className="w-3.5 h-3.5 text-purple-400" />
+              <span>Фильтр по препарату Pharma:</span>
+            </span>
+
+            <select
+              value={selectedDrugId}
+              onChange={(e) => {
+                sounds.playClick();
+                setSelectedDrugId(e.target.value);
+              }}
+              className="bg-[#0e1422] border border-purple-500/30 text-purple-200 text-xs font-bold rounded-xl px-3 py-1 focus:outline-none focus:border-purple-400 cursor-pointer"
+            >
+              <option value="all">🧪 Все препараты (22)</option>
+              {PHARMA_DRUGS_CATALOG.map((drug) => (
+                <option key={drug.id} value={drug.id}>
+                  💊 {drug.name} ({drug.brand})
+                </option>
+              ))}
+            </select>
+
+            {selectedDrugId !== 'all' && (
+              <button
+                onClick={() => setSelectedDrugId('all')}
+                className="text-[10px] text-rose-400 hover:text-rose-300 underline font-mono shrink-0 ml-1 cursor-pointer"
+              >
+                Сбросить
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Products Grid */}
@@ -857,6 +916,15 @@ export const MegastoreHub: React.FC<MegastoreHubProps> = ({
                   <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2">
                     {prod.descRu}
                   </p>
+
+                  {/* Used for Drug badge */}
+                  {prod.category === 'pharma' && ingredientDrugMap[prod.itemKey]?.length > 0 && (
+                    <div className="pt-1.5 flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] font-mono text-purple-300 font-bold bg-purple-950/40 border border-purple-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        💊 Для: {ingredientDrugMap[prod.itemKey].join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

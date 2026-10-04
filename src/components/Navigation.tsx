@@ -1,9 +1,33 @@
 import React, { useState } from 'react';
 import { GamePhase, GameState } from '../types/game';
-import { Volume2, VolumeX, ShieldAlert, Zap, DollarSign, Sun, Sparkles, Languages, Type, RotateCcw, AlertTriangle, X, Sliders, Factory, Cross, ShoppingCart, Truck, TrendingUp, Shield, BookOpen } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  ShieldAlert,
+  Zap,
+  Type,
+  RotateCcw,
+  AlertTriangle,
+  X,
+  Factory,
+  Cross,
+  ShoppingCart,
+  Truck,
+  TrendingUp,
+  Shield,
+  BookOpen,
+  ChevronLeft,
+  Grid,
+  Menu,
+  Languages,
+  Sparkles,
+  Package
+} from 'lucide-react';
 import { MiniGameType } from './MiniGameManager';
 import { sounds } from '../engine/soundEffects';
 import { Language, translations } from '../i18n/translations';
+import { hapticFeedback } from '../utils/haptics';
+import { MobileBottomSheet } from './MobileBottomSheet';
 
 export type FontTheme = 'inter' | 'golos' | 'unbounded' | 'system';
 
@@ -43,6 +67,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   const t = translations[language];
   const [showFontMenu, setShowFontMenu] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showWorkshopsSheet, setShowWorkshopsSheet] = useState(false);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
 
   const fontOptions: { id: FontTheme; name: string; preview: string }[] = [
     { id: 'inter', name: 'Inter', preview: 'Inter (Чёткий)' },
@@ -53,6 +79,87 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const productionPhases: GamePhase[] = ['botany', 'mycology', 'synthesis', 'powder_refinery', 'pharma_lab'];
   const isProductionActive = productionPhases.includes(currentPhase);
+
+  // All 14 Workshops & Sections for the Mobile Bottom Sheet Selector
+  const all14Workshops = [
+    {
+      id: 'botany' as GamePhase,
+      nameRu: 'Каннабис (Ботаника)',
+      descRu: 'Теплица гидропоники, N-Max и бустеры',
+      icon: '🌿',
+      category: 'Лаборатории'
+    },
+    {
+      id: 'mycology' as GamePhase,
+      nameRu: 'Псило-грибы (Микология)',
+      descRu: 'Монотубы, споровые культуры «Астрал»',
+      icon: '🍄',
+      category: 'Лаборатории'
+    },
+    {
+      id: 'synthesis' as GamePhase,
+      nameRu: 'Хим-синтез ЛСД-25',
+      descRu: '5-этапная рефлюксная реакция',
+      icon: '🧪',
+      category: 'Лаборатории'
+    },
+    {
+      id: 'powder_refinery' as GamePhase,
+      nameRu: 'Порошковый цех «Аврора»',
+      descRu: 'Очистка кристаллов и грейд S+',
+      icon: '📦',
+      category: 'Лаборатории'
+    },
+    {
+      id: 'pharma_lab' as GamePhase,
+      nameRu: 'Лаборатория PHARMA',
+      descRu: 'Производство 22 фарма-препаратов',
+      icon: '💊',
+      category: 'Лаборатории'
+    },
+    {
+      id: 'pharma_facade' as GamePhase,
+      nameRu: 'Моя Аптека (Витрина)',
+      descRu: 'Продажи клиентам, бланки Rx',
+      icon: '🏥',
+      category: 'Торговля'
+    },
+    {
+      id: 'megastore' as GamePhase,
+      nameRu: 'Теневой Мегамаркет',
+      descRu: 'Оптовые поставки сырья и баз',
+      icon: '🛒',
+      category: 'Торговля'
+    },
+    {
+      id: 'side_jobs' as GamePhase,
+      nameRu: 'Подработки Курьера',
+      descRu: 'Закладки и быстрый наличный чек',
+      icon: '🏃',
+      category: 'Торговля'
+    },
+    {
+      id: 'economy' as GamePhase,
+      nameRu: 'Сбыт & Черный рынок',
+      descRu: 'Оптовые каналы и курсы крипты',
+      icon: '💰',
+      category: 'Управление'
+    },
+    {
+      id: 'upkeep' as GamePhase,
+      nameRu: 'Инфраструктура & База',
+      descRu: 'Солнечные панели и фильтры',
+      icon: '⚙️',
+      category: 'Управление'
+    },
+    {
+      id: 'handbook' as GamePhase,
+      nameRu: 'База знаний (Справочник)',
+      descRu: 'Руководство Синдиката и рецепты',
+      icon: '📖',
+      category: 'Справочник'
+    }
+  ];
 
   const mainHubs = [
     {
@@ -107,77 +214,50 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'pharma_lab', label: language === 'ru' ? '💊 Препараты PHARMA' : '💊 Pharma Lab', icon: '💊' },
   ];
 
-  const mobileTabs = [
-    {
-      id: 'production_hub',
-      label: language === 'ru' ? 'Цех' : 'Labs',
-      icon: Factory,
-      isActive: isProductionActive,
-      onClick: () => onSelectPhase(isProductionActive ? currentPhase : 'botany'),
-    },
-    {
-      id: 'pharma_facade',
-      label: language === 'ru' ? 'Аптека' : 'Pharma',
-      icon: Cross,
-      isActive: currentPhase === 'pharma_facade',
-      onClick: () => onSelectPhase('pharma_facade'),
-    },
-    {
-      id: 'megastore',
-      label: language === 'ru' ? 'Маркет' : 'Market',
-      icon: ShoppingCart,
-      isActive: currentPhase === 'megastore',
-      onClick: () => onSelectPhase('megastore'),
-    },
-    {
-      id: 'side_jobs',
-      label: language === 'ru' ? 'Курьер' : 'Courier',
-      icon: Truck,
-      isActive: currentPhase === 'side_jobs',
-      onClick: () => onSelectPhase('side_jobs'),
-    },
-    {
-      id: 'economy',
-      label: language === 'ru' ? 'Сбыт' : 'Sales',
-      icon: TrendingUp,
-      isActive: currentPhase === 'economy',
-      onClick: () => onSelectPhase('economy'),
-    },
-    {
-      id: 'upkeep',
-      label: language === 'ru' ? 'База' : 'Base',
-      icon: Shield,
-      isActive: currentPhase === 'upkeep',
-      onClick: () => onSelectPhase('upkeep'),
-    },
-  ];
-
   return (
-    <header className="sticky top-0 z-30 bg-[#090c10]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-lg shadow-black/40">
-      {/* 3-Zone Top Bar Contract */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-        {/* Zone 1: Single text element wordmark */}
-        <button
-          onClick={() => {
-            sounds.playClick();
-            onSelectPhase('botany');
-          }}
-          className="flex items-center gap-2.5 text-base sm:text-lg font-bold tracking-tight text-white hover:text-emerald-400 transition-all cursor-pointer group shrink-0"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#10b981] group-hover:scale-125 transition-transform" />
-          <span>{t.brandTitle}</span>
-        </button>
+    <header className="sticky top-0 z-30 bg-[#090c10]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-lg shadow-black/40 pt-safe">
+      {/* Top App Bar */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+        {/* Zone 1: Mobile Back Button / Brand Title */}
+        <div className="flex items-center gap-2">
+          {isProductionActive && currentPhase !== 'botany' && (
+            <button
+              onClick={() => {
+                hapticFeedback.light();
+                sounds.playClick();
+                onSelectPhase('botany');
+              }}
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white cursor-pointer min-h-[44px] min-w-[44px]"
+              aria-label="Назад"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
 
-        {/* Zone 2: 5 Clean Primary Hubs */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              onSelectPhase('botany');
+            }}
+            className="flex items-center gap-2 text-sm sm:text-lg font-bold tracking-tight text-white hover:text-emerald-400 transition-all cursor-pointer group shrink-0"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#10b981] group-hover:scale-125 transition-transform" />
+            <span className="truncate max-w-[140px] sm:max-w-none">{t.brandTitle}</span>
+          </button>
+        </div>
+
+        {/* Zone 2: Desktop Navigation Hubs */}
         <nav className="hidden md:flex items-center gap-1.5 bg-[#141a24]/90 p-1.5 rounded-xl border border-white/[0.08] text-xs font-mono font-bold text-slate-200">
           {mainHubs.map((item) => (
             <button
               key={item.id}
               onClick={() => {
+                hapticFeedback.light();
                 sounds.playClick();
                 item.onClick();
               }}
-              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer min-h-[44px] ${
                 item.isActive
                   ? 'bg-emerald-500/20 text-emerald-300 shadow-sm border border-emerald-500/40 ring-1 ring-emerald-500/20'
                   : 'hover:text-white hover:bg-white/[0.06] text-slate-400'
@@ -188,33 +268,38 @@ export const Navigation: React.FC<NavigationProps> = ({
           ))}
         </nav>
 
-        {/* Zone 3: 1-2 primary actions & toggles */}
-        <div className="flex items-center gap-2">
+        {/* Zone 3: Actions & Quick Toggles */}
+        <div className="flex items-center gap-1.5">
+          {/* Funds Badge on Mobile */}
+          <div className="md:hidden px-2.5 py-1 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 font-mono font-extrabold text-xs">
+            ${gameState.cash.toLocaleString()}
+          </div>
+
           {/* Font Selector */}
-          <div className="relative">
+          <div className="relative hidden sm:block">
             <button
-              onClick={() => setShowFontMenu(!showFontMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#141923] hover:bg-[#1c2332] text-slate-200 border border-white/10 rounded-lg transition-all cursor-pointer active:scale-95"
-              title="Выбрать шрифт / Change font"
+              onClick={() => {
+                hapticFeedback.light();
+                setShowFontMenu(!showFontMenu);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#141923] hover:bg-[#1c2332] text-slate-200 border border-white/10 rounded-lg transition-all cursor-pointer active:scale-95 min-h-[44px]"
             >
               <Type className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline font-mono capitalize">{activeFont}</span>
+              <span className="font-mono capitalize">{activeFont}</span>
             </button>
 
             {showFontMenu && (
               <div className="absolute right-0 mt-2 w-44 bg-[#121822] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1">
-                <div className="px-2.5 py-1 text-[11px] font-semibold text-slate-400 border-b border-white/5 uppercase tracking-wider">
-                  {language === 'ru' ? 'Шрифт интерфейса' : 'Interface Font'}
-                </div>
                 {fontOptions.map((opt) => (
                   <button
                     key={opt.id}
                     onClick={() => {
+                      hapticFeedback.light();
                       sounds.playClick();
                       onChangeFont(opt.id);
                       setShowFontMenu(false);
                     }}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs text-left flex items-center justify-between cursor-pointer transition-colors ${
+                    className={`px-2.5 py-2 rounded-lg text-xs text-left flex items-center justify-between cursor-pointer ${
                       activeFont === opt.id
                         ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
                         : 'text-slate-200 hover:bg-white/5'
@@ -231,58 +316,23 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Language Switcher RU / EN */}
           <button
             onClick={() => {
+              hapticFeedback.light();
               sounds.playClick();
               onToggleLanguage();
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono font-bold bg-[#141923] hover:bg-[#1c2332] text-slate-200 border border-white/10 rounded-lg transition-all cursor-pointer active:scale-95"
-            title={language === 'ru' ? 'Switch to English' : 'Переключить на русский'}
+            className="flex items-center gap-1 px-2 py-1.5 text-xs font-mono font-bold bg-[#141923] hover:bg-[#1c2332] text-slate-200 border border-white/10 rounded-lg transition-all cursor-pointer active:scale-95 min-h-[44px]"
           >
             <Languages className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="tracking-wider">{language.toUpperCase()}</span>
+            <span className="tracking-wider text-[11px]">{language.toUpperCase()}</span>
           </button>
 
+          {/* Mute Toggle */}
           <button
             onClick={() => {
-              sounds.playPsychedelicChime();
-              onTriggerSampleModal();
+              hapticFeedback.light();
+              onToggleMute();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 rounded-lg transition-all whitespace-nowrap cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-            <span className="hidden sm:inline">{t.sampleFxButton}</span>
-          </button>
-
-          {/* Interactive MiniGame Manager Launcher */}
-          {onOpenMiniGameManager && (
-            <button
-              onClick={() => {
-                sounds.playClick();
-                onOpenMiniGameManager('lsd_dosing');
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
-              title={language === 'ru' ? 'Лабораторные Мини-Игры & Челленджи' : 'Crafting MiniGames & Challenges'}
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">{language === 'ru' ? 'Мини-Игры' : 'MiniGames'}</span>
-            </button>
-          )}
-
-          {/* New Game Button */}
-          <button
-            onClick={() => {
-              sounds.playClick();
-              setShowResetModal(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono font-bold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-lg transition-all cursor-pointer active:scale-95"
-            title={language === 'ru' ? 'Начать новую игру' : 'Start New Game'}
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
-            <span className="hidden sm:inline">{language === 'ru' ? 'Сброс' : 'Reset'}</span>
-          </button>
-
-          <button
-            onClick={onToggleMute}
-            className="p-2 text-slate-400 hover:text-slate-100 hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-100 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label={isMuted ? t.unmuteSounds : t.muteSounds}
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-slate-300" />}
@@ -292,25 +342,26 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Production Sub-Nav Strip (when inside any production workshop) */}
       {isProductionActive && (
-        <div className="bg-[#06090e]/90 border-t border-white/[0.05] px-4 sm:px-6 py-2 overflow-x-auto">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400 shrink-0">
-              <span className="text-emerald-400 font-bold uppercase tracking-wider">Цех:</span>
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto">
+        <div className="bg-[#06090e]/90 border-t border-white/[0.05] px-3 sm:px-6 py-1.5 overflow-x-auto scrollbar-none">
+          <div className="max-w-7xl mx-auto flex items-center gap-1.5">
+            <span className="text-emerald-400 font-bold text-[10px] font-mono uppercase tracking-wider shrink-0 mr-1">
+              Цех:
+            </span>
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
               {productionSubTabs.map((tab) => {
                 const isCurrent = currentPhase === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => {
+                      hapticFeedback.light();
                       sounds.playClick();
                       onSelectPhase(tab.id);
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 shrink-0 ${
                       isCurrent
                         ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md font-extrabold'
-                        : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/5'
+                        : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5'
                     }`}
                   >
                     <span>{tab.label}</span>
@@ -322,94 +373,35 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
       )}
 
-      {/* Mobile Bottom-Tab Fixed Navigation Bar (Screen-efficient bottom navigation for smartphones) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#080b12]/95 backdrop-blur-2xl border-t border-white/10 shadow-[0_-10px_35px_rgba(0,0,0,0.9)] pb-safe">
-        {/* Production Sub-Tabs Strip on mobile if inside production */}
-        {isProductionActive && (
-          <div className="bg-[#0b0f18] border-b border-white/10 px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            {productionSubTabs.map((tab) => {
-              const isCurrent = currentPhase === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    sounds.playClick();
-                    onSelectPhase(tab.id);
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 shrink-0 ${
-                    isCurrent
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-extrabold shadow-sm'
-                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Primary 6 Bottom Tabs Grid */}
-        <div className="grid grid-cols-6 gap-0.5 px-1 py-1.5">
-          {mobileTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  sounds.playClick();
-                  tab.onClick();
-                }}
-                className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 min-h-[44px] ${
-                  tab.isActive
-                    ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${tab.isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
-                <span className="text-[9px] tracking-tight leading-none mt-1 font-mono font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
       {/* Persistent Strategic Stat Strip */}
-      <div className="border-t border-white/[0.06] bg-[#0c1017]/80 backdrop-blur-md px-6 py-2">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
+      <div className="border-t border-white/[0.06] bg-[#0c1017]/80 backdrop-blur-md px-3 sm:px-6 py-1.5">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
           {/* Funds & Crypto */}
-          <div className="flex items-center gap-5 text-slate-200">
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-sans text-xs font-medium">{t.cash}</span>
-              <span className="text-emerald-400 font-bold tabular-nums text-sm tracking-tight">
+          <div className="flex items-center gap-3 sm:gap-5 text-slate-200">
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400 font-sans text-xs">{t.cash}</span>
+              <span className="text-emerald-400 font-bold tabular-nums text-xs sm:text-sm">
                 ${gameState.cash.toLocaleString()}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 text-xs font-semibold">XMR</span>
-              <span className="text-amber-400 tabular-nums font-semibold">
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400 text-xs">XMR</span>
+              <span className="text-amber-400 tabular-nums font-semibold text-xs">
                 {gameState.cryptoXmr.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 hidden sm:flex">
-              <span className="text-slate-400 text-xs font-semibold">BTC</span>
-              <span className="text-orange-400 tabular-nums">
-                {gameState.cryptoBtc.toFixed(4)}
               </span>
             </div>
           </div>
 
           {/* Risk & Police Heat */}
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
               <ShieldAlert className={`w-3.5 h-3.5 ${gameState.policeHeat > 50 ? 'text-rose-400 animate-pulse' : 'text-slate-300'}`} />
-              <span className="text-slate-300 font-sans text-xs font-medium">{t.heat}</span>
-              <span className={`tabular-nums font-bold ${
+              <span className={`tabular-nums font-bold text-xs ${
                 gameState.policeHeat > 60 ? 'text-rose-400' : gameState.policeHeat > 30 ? 'text-amber-400' : 'text-emerald-400'
               }`}>
                 {Math.round(gameState.policeHeat)}%
               </span>
-              <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/10">
+              <div className="w-12 sm:w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/10">
                 <div
                   className={`h-full transition-all duration-500 ${
                     gameState.policeHeat > 60 ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : gameState.policeHeat > 30 ? 'bg-amber-400' : 'bg-emerald-500'
@@ -419,64 +411,263 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
             </div>
 
-            {/* Power grid vs solar */}
-            <div className="flex items-center gap-1.5 text-slate-300 hidden lg:flex">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-sans text-xs">{t.power}</span>
-              <span className="text-slate-100 tabular-nums font-semibold">
-                {gameState.totalPowerWatts}W
-              </span>
-              <span className="text-slate-400 text-xs font-medium">({gameState.solarPanels * 400}W {t.solarOffset})</span>
-            </div>
-
             {/* Simulation Day & Speed */}
-            <div className="flex items-center gap-2.5 text-slate-300">
-              <span className="text-slate-200 font-sans font-semibold">{t.day} {gameState.day}</span>
-              <span className="text-slate-500">·</span>
-              <span className="text-emerald-400 tabular-nums font-bold text-sm">
+            <div className="flex items-center gap-2 text-slate-300">
+              <span className="text-slate-200 font-semibold text-xs">{t.day} {gameState.day}</span>
+              <span className="text-emerald-400 tabular-nums font-bold text-xs">
                 {String(gameState.hour).padStart(2, '0')}:00
               </span>
 
-              {/* Time Speed Control Buttons */}
-              <div className="flex items-center gap-1 bg-[#141923] p-1 rounded-lg border border-white/10 text-[10px] font-mono">
-                {[
-                  { speed: 1.0, label: '1x' },
-                  { speed: 2.0, label: '2x' },
-                  { speed: 4.0, label: '4x' },
-                ].map((btn) => (
-                  <button
-                    key={btn.label}
-                    onClick={() => {
-                      sounds.playClick();
-                      if (onChangeSpeed) onChangeSpeed(btn.speed);
-                    }}
-                    className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors font-bold ${
-                      (gameState.timeSpeedMultiplier || 1.0) === btn.speed
-                        ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* End Day Manual Trigger Button */}
+              {/* End Day Button */}
               {onTriggerDayEnd && (
                 <button
                   onClick={() => {
+                    hapticFeedback.medium();
                     sounds.playClick();
                     onTriggerDayEnd();
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-mono font-bold cursor-pointer transition-all shadow-xs active:scale-95"
+                  className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold cursor-pointer active:scale-95 shrink-0"
                 >
-                  {language === 'ru' ? 'Завершить день ➔' : 'End Day ➔'}
+                  День ➔
                 </button>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* MOBILE FIXED BOTTOM NAVIGATION BAR (THUMB ZONE 5-BUTTON BAR WITH SAFE AREA) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#080b12]/95 backdrop-blur-2xl border-t border-white/15 shadow-[0_-10px_35px_rgba(0,0,0,0.9)] pb-safe">
+        <div className="grid grid-cols-5 gap-1 px-1 py-1.5">
+          {/* 1. Лабы (Opens Workshops Bottom Sheet) */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              setShowWorkshopsSheet(true);
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 min-h-[48px] ${
+              isProductionActive
+                ? 'bg-emerald-500/25 text-emerald-300 font-extrabold border border-emerald-500/40 shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Factory className={`w-5 h-5 ${isProductionActive ? 'text-emerald-400' : 'text-slate-400'}`} />
+            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Лабы</span>
+          </button>
+
+          {/* 2. Аптека */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              onSelectPhase('pharma_facade');
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 min-h-[48px] ${
+              currentPhase === 'pharma_facade'
+                ? 'bg-emerald-500/25 text-emerald-300 font-extrabold border border-emerald-500/40 shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Cross className={`w-5 h-5 ${currentPhase === 'pharma_facade' ? 'text-emerald-400' : 'text-slate-400'}`} />
+            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Аптека</span>
+          </button>
+
+          {/* 3. Сбыт */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              onSelectPhase('economy');
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 min-h-[48px] ${
+              currentPhase === 'economy'
+                ? 'bg-emerald-500/25 text-emerald-300 font-extrabold border border-emerald-500/40 shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <TrendingUp className={`w-5 h-5 ${currentPhase === 'economy' ? 'text-emerald-400' : 'text-slate-400'}`} />
+            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Сбыт</span>
+          </button>
+
+          {/* 4. Инвентарь (Мегамаркет & Склад) */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              onSelectPhase('megastore');
+            }}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 min-h-[48px] ${
+              currentPhase === 'megastore'
+                ? 'bg-emerald-500/25 text-emerald-300 font-extrabold border border-emerald-500/40 shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Package className={`w-5 h-5 ${currentPhase === 'megastore' ? 'text-emerald-400' : 'text-slate-400'}`} />
+            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Инвентарь</span>
+          </button>
+
+          {/* 5. Еще... (Opens Mobile Bottom Sheet with secondary functions) */}
+          <button
+            onClick={() => {
+              hapticFeedback.light();
+              sounds.playClick();
+              setShowMoreSheet(true);
+            }}
+            className="flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition-all cursor-pointer active:scale-95 min-h-[48px]"
+          >
+            <Menu className="w-5 h-5 text-slate-400" />
+            <span className="text-[10px] tracking-tight leading-none mt-1 font-mono font-bold">Еще</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* MOBILE BOTTOM SHEET 1: SELECT WORKSHOP (14 LABS & WORKSHOPS) */}
+      <MobileBottomSheet
+        isOpen={showWorkshopsSheet}
+        onClose={() => setShowWorkshopsSheet(false)}
+        title="🏭 Выбор Цеха & Лаборатории"
+        subtitle="Выберите активную производственную линию"
+      >
+        <div className="grid grid-cols-1 gap-2.5">
+          {all14Workshops.map((w) => {
+            const isSelected = currentPhase === w.id;
+            return (
+              <button
+                key={w.id}
+                onClick={() => {
+                  hapticFeedback.medium();
+                  sounds.playClick();
+                  onSelectPhase(w.id);
+                  setShowWorkshopsSheet(false);
+                }}
+                className={`p-3.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer active:scale-98 min-h-[52px] ${
+                  isSelected
+                    ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-200 shadow-lg ring-1 ring-emerald-500/30'
+                    : 'bg-[#121722] border-white/10 hover:border-white/20 text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{w.icon}</span>
+                  <div>
+                    <strong className="text-sm font-bold block leading-snug">{w.nameRu}</strong>
+                    <span className="text-[11px] text-slate-400 font-mono">{w.descRu}</span>
+                  </div>
+                </div>
+
+                <div className="text-xs font-mono font-bold text-emerald-400">
+                  {isSelected ? '✓ Выбрано' : 'Открыть ➔'}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </MobileBottomSheet>
+
+      {/* MOBILE BOTTOM SHEET 2: MORE SECTIONS & SETTINGS */}
+      <MobileBottomSheet
+        isOpen={showMoreSheet}
+        onClose={() => setShowMoreSheet(false)}
+        title="📋 Главное Меню & Разделы"
+        subtitle="Сбыт, инфраструктура, база знаний и настройки"
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => {
+                hapticFeedback.medium();
+                sounds.playClick();
+                onSelectPhase('side_jobs');
+                setShowMoreSheet(false);
+              }}
+              className="p-3 bg-[#121722] border border-white/10 rounded-2xl text-left flex flex-col justify-between space-y-2 cursor-pointer active:scale-95 min-h-[64px]"
+            >
+              <Truck className="w-5 h-5 text-emerald-400" />
+              <div>
+                <strong className="text-xs font-bold text-white block">Курьер & Закладки</strong>
+                <span className="text-[10px] text-slate-400 font-mono">Подработки & Чек</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                hapticFeedback.medium();
+                sounds.playClick();
+                onSelectPhase('upkeep');
+                setShowMoreSheet(false);
+              }}
+              className="p-3 bg-[#121722] border border-white/10 rounded-2xl text-left flex flex-col justify-between space-y-2 cursor-pointer active:scale-95 min-h-[64px]"
+            >
+              <Shield className="w-5 h-5 text-amber-400" />
+              <div>
+                <strong className="text-xs font-bold text-white block">Инфраструктура</strong>
+                <span className="text-[10px] text-slate-400 font-mono">Солнечные панели & фильтры</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                hapticFeedback.medium();
+                sounds.playClick();
+                onSelectPhase('handbook');
+                setShowMoreSheet(false);
+              }}
+              className="p-3 bg-[#121722] border border-white/10 rounded-2xl text-left flex flex-col justify-between space-y-2 cursor-pointer active:scale-95 min-h-[64px]"
+            >
+              <BookOpen className="w-5 h-5 text-cyan-400" />
+              <div>
+                <strong className="text-xs font-bold text-white block">База знаний</strong>
+                <span className="text-[10px] text-slate-400 font-mono">Рецепты & Справочник</span>
+              </div>
+            </button>
+
+            {onOpenMiniGameManager && (
+              <button
+                onClick={() => {
+                  hapticFeedback.medium();
+                  sounds.playClick();
+                  onOpenMiniGameManager('lsd_dosing');
+                  setShowMoreSheet(false);
+                }}
+                className="p-3 bg-amber-950/30 border border-amber-500/40 rounded-2xl text-left flex flex-col justify-between space-y-2 cursor-pointer active:scale-95 min-h-[64px]"
+              >
+                <Zap className="w-5 h-5 text-amber-400" />
+                <div>
+                  <strong className="text-xs font-bold text-amber-300 block">Мини-Игры</strong>
+                  <span className="text-[10px] text-slate-400 font-mono">Челленджи Синдиката</span>
+                </div>
+              </button>
+            )}
+          </div>
+
+          <div className="pt-3 border-t border-white/10 space-y-2">
+            <button
+              onClick={() => {
+                hapticFeedback.medium();
+                sounds.playPsychedelicChime();
+                onTriggerSampleModal();
+                setShowMoreSheet(false);
+              }}
+              className="w-full py-3 px-4 bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 font-bold text-xs rounded-2xl shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95 min-h-[48px]"
+            >
+              <Sparkles className="w-4 h-4 fill-slate-950" />
+              <span>{t.sampleFxButton}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                hapticFeedback.heavy();
+                setShowMoreSheet(false);
+                setShowResetModal(true);
+              }}
+              className="w-full py-3 px-4 bg-rose-950/50 border border-rose-500/40 text-rose-300 font-bold text-xs rounded-2xl cursor-pointer flex items-center justify-center gap-2 active:scale-95 min-h-[48px]"
+            >
+              <RotateCcw className="w-4 h-4 text-rose-400" />
+              <span>Начать новую игру с нуля</span>
+            </button>
+          </div>
+        </div>
+      </MobileBottomSheet>
 
       {/* Reset Game Confirmation Modal */}
       {showResetModal && (
@@ -489,7 +680,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
               <button
                 onClick={() => setShowResetModal(false)}
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -504,17 +695,18 @@ export const Navigation: React.FC<NavigationProps> = ({
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowResetModal(false)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold cursor-pointer transition-colors min-h-[44px]"
               >
                 {language === 'ru' ? 'Отмена' : 'Cancel'}
               </button>
               <button
                 onClick={() => {
+                  hapticFeedback.heavy();
                   sounds.playCash();
                   setShowResetModal(false);
                   onResetGame();
                 }}
-                className="px-5 py-2 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all active:scale-95"
+                className="px-5 py-2 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all active:scale-95 min-h-[44px]"
               >
                 {language === 'ru' ? 'Да, начать заново' : 'Yes, Restart Game'}
               </button>
@@ -525,4 +717,3 @@ export const Navigation: React.FC<NavigationProps> = ({
     </header>
   );
 };
-

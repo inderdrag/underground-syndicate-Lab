@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { pharmaPackConfig } from '../../config/pharmaPackData';
 import { PHARMA_DRUGS_CATALOG, PharmaDrugRecipe } from '../../data/pharma_recipes_config';
+import { MEGASTORE_ITEMS } from '../../data/megastore_catalog';
 import { PharmaCraftingMiniGames, PharmaCraftBatchOutcome } from '../minigames/PharmaCraftingMiniGames';
 import { PharmaItemDef, PharmaSubgroup, PharmaCraftBatchResult, PharmaGameState, PharmaStash } from '../../types/pharma';
 import { processCraftingMiniGame } from '../../services/pharmaEngine';
@@ -420,6 +421,10 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {selectedItem.recipe.ingredients.map(ing => {
                       const ingDef = pharmaPackConfig.ingredients.find(i => i.id === ing.ingredientId);
+                      const megaItem = MEGASTORE_ITEMS.find(m => m.id === ing.ingredientId);
+                      const displayName = megaItem?.name || ingDef?.name || ing.ingredientId;
+                      const displayIcon = megaItem?.icon || ingDef?.icon || '🧪';
+
                       const available = getIngredientStock(ing.ingredientId, gameState, pharmaState);
                       const hasEnough = available >= ing.amount;
 
@@ -431,9 +436,9 @@ export const PharmaLabView: React.FC<PharmaLabViewProps> = ({
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
-                            <span className="text-xl">{ingDef?.icon || '🧪'}</span>
+                            <span className="text-xl">{displayIcon}</span>
                             <div>
-                              <div className="text-xs font-bold text-slate-200">{ingDef?.name || ing.ingredientId}</div>
+                              <div className="text-xs font-bold text-slate-200">{displayName}</div>
                               <div className="text-[11px] text-slate-400">Требуется: {ing.amount} ед.</div>
                             </div>
                           </div>

@@ -2,7 +2,7 @@ import { PharmaPackConfig } from '../types/pharma';
 
 /**
  * Standalone Pharma Pack Data Configuration
- * Synchronized with PHARMA_DRUGS_CATALOG across the entire application.
+ * Strictly using exact Megamarket ingredients (Bases, Catalysts, Packagings).
  */
 export const pharmaPackConfig: PharmaPackConfig = {
   enabled: true,
@@ -236,7 +236,7 @@ export const pharmaPackConfig: PharmaPackConfig = {
       }
     },
 
-    // --- 💊 ВИТАМИНЫ & БАДЫ (VITAMINS) ---
+    // --- 💊 ВИТАМИНЫ & БАДы (VITAMINS) ---
     {
       id: 'vitamin_c',
       name: 'Витамин C',
@@ -733,7 +733,7 @@ export const pharmaPackConfig: PharmaPackConfig = {
       subgroup: 'opioids',
       form: 'pills',
       icon: '☣️',
-      description: 'FENTANYL 100 mcg/h (Пластыри). Синтетический анальгетик максимальной критической мощности.',
+      description: 'FENTANYL 100 мкг/ч (Пластыри). Синтетический анальгетик максимальной критической мощности.',
       basePrice: 1000,
       districtPriceRanges: { slums: [800, 950], downtown: [1000, 1400], nightclubs: [1100, 1500], suburbs: [900, 1200] },
       potency: 100,

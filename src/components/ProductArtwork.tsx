@@ -379,6 +379,64 @@ export const ProductArtwork: React.FC<ProductArtworkProps> = ({
       );
 
     default:
+      if (productId.startsWith('base_')) {
+        return (
+          <div className={`relative flex items-center justify-center bg-gradient-to-br from-[#1a0f2e] to-[#0a0518] rounded-2xl overflow-hidden border border-purple-500/30 ${sizeClasses} ${className}`}>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(168,85,247,0.3),transparent_70%)]" />
+            <svg viewBox="0 0 100 100" className="w-full h-full p-2 filter drop-shadow-[0_4px_12px_rgba(168,85,247,0.5)]">
+              <path d="M 42,20 L 58,20 L 58,38 L 74,78 C 76,84 72,88 64,88 L 36,88 C 28,88 24,84 26,78 L 42,38 Z" fill="#3b0764" stroke="#c084fc" strokeWidth="2.5" />
+              <path d="M 32,68 Q 50,60 68,68 L 64,84 L 36,84 Z" fill="#a855f7" opacity="0.8" />
+              <circle cx="44" cy="74" r="2.5" fill="#ffffff" />
+              <circle cx="56" cy="76" r="3" fill="#ffffff" />
+            </svg>
+            <span className="absolute bottom-1 right-2 text-[9px] font-mono font-bold text-purple-300">ОСНОВА</span>
+          </div>
+        );
+      }
+      if (productId.startsWith('cat_')) {
+        return (
+          <div className={`relative flex items-center justify-center bg-gradient-to-br from-[#0c1a24] to-[#03090e] rounded-2xl overflow-hidden border border-cyan-500/30 ${sizeClasses} ${className}`}>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(6,182,212,0.3),transparent_70%)]" />
+            <svg viewBox="0 0 100 100" className="w-full h-full p-2 filter drop-shadow-[0_4px_12px_rgba(6,182,212,0.5)]">
+              <circle cx="50" cy="50" r="26" fill="#164e63" stroke="#22d3ee" strokeWidth="2.5" />
+              <ellipse cx="50" cy="50" rx="36" ry="12" stroke="#67e8f9" strokeWidth="1.5" fill="none" transform="rotate(30 50 50)" />
+              <ellipse cx="50" cy="50" rx="36" ry="12" stroke="#67e8f9" strokeWidth="1.5" fill="none" transform="rotate(-30 50 50)" />
+              <circle cx="50" cy="50" r="8" fill="#a5f3fc" />
+            </svg>
+            <span className="absolute bottom-1 right-2 text-[9px] font-mono font-bold text-cyan-300">КАТАЛИЗАТОР</span>
+          </div>
+        );
+      }
+      if (productId.startsWith('pack_')) {
+        return (
+          <div className={`relative flex items-center justify-center bg-gradient-to-br from-[#0a1813] to-[#030a07] rounded-2xl overflow-hidden border border-emerald-500/30 ${sizeClasses} ${className}`}>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(16,185,129,0.3),transparent_70%)]" />
+            <svg viewBox="0 0 100 100" className="w-full h-full p-2 filter drop-shadow-[0_4px_12px_rgba(16,185,129,0.5)]">
+              <rect x="22" y="22" width="56" height="56" rx="6" fill="#064e3b" stroke="#34d399" strokeWidth="2.5" />
+              <circle cx="38" cy="38" r="7" fill="#10b981" stroke="#a7f3d0" strokeWidth="1.5" />
+              <circle cx="62" cy="38" r="7" fill="#10b981" stroke="#a7f3d0" strokeWidth="1.5" />
+              <circle cx="38" cy="62" r="7" fill="#10b981" stroke="#a7f3d0" strokeWidth="1.5" />
+              <circle cx="62" cy="62" r="7" fill="#10b981" stroke="#a7f3d0" strokeWidth="1.5" />
+            </svg>
+            <span className="absolute bottom-1 right-2 text-[9px] font-mono font-bold text-emerald-300">УПАКОВКА</span>
+          </div>
+        );
+      }
+      if (productId.startsWith('clean_') || productId.includes('stamp') || productId.includes('forgery')) {
+        return (
+          <div className={`relative flex items-center justify-center bg-gradient-to-br from-[#1a1408] to-[#0a0702] rounded-2xl overflow-hidden border border-amber-500/30 ${sizeClasses} ${className}`}>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.3),transparent_70%)]" />
+            <svg viewBox="0 0 100 100" className="w-full h-full p-2 filter drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">
+              <rect x="26" y="18" width="48" height="64" rx="4" fill="#78350f" stroke="#f59e0b" strokeWidth="2.5" />
+              <line x1="34" y1="30" x2="66" y2="30" stroke="#fde68a" strokeWidth="2" />
+              <line x1="34" y1="40" x2="60" y2="40" stroke="#fde68a" strokeWidth="2" />
+              <line x1="34" y1="50" x2="55" y2="50" stroke="#fde68a" strokeWidth="2" />
+              <circle cx="58" cy="64" r="8" fill="#ef4444" opacity="0.8" />
+            </svg>
+            <span className="absolute bottom-1 right-2 text-[9px] font-mono font-bold text-amber-300">РЕЦЕПТ</span>
+          </div>
+        );
+      }
       return (
         <div className={`flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 ${sizeClasses} ${className}`}>
           <div className="w-6 h-6 rounded-full bg-cyan-400/20" />

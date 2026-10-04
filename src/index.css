@@ -31,6 +31,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, .font-display {
@@ -38,6 +40,15 @@
     font-weight: 700;
     letter-spacing: -0.01em;
     color: #ffffff;
+  }
+
+  /* Safe Area & Mobile Bottom Nav Adjustments */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
   }
 
   /* Custom high-end scrollbars */
@@ -56,12 +67,21 @@
     background: #334155;
   }
 
+  /* Hide scrollbar utility */
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Custom range sliders for lab equipment controls */
   input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
     background: #171d26;
-    height: 6px;
+    height: 8px;
     border-radius: 9999px;
     outline: none;
     transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -70,8 +90,8 @@
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: #10b981;
     cursor: pointer;
@@ -88,6 +108,33 @@
   input[type="range"]::-webkit-slider-thumb:active {
     transform: scale(0.95);
   }
+}
+
+/* Mobile Slide & Fade Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
 /* Glass & Glow utilities */
